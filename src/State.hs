@@ -4,11 +4,16 @@ module State
     , highlightPrevFile
     , highlightedFile
     , enterHighlightedFile
+    , defaultPaneState
+    , AppState(AppState)
+    , defaultAppState
     ) where
 
 
+import qualified Data.IntMap                   as IM
 import           System.Directory               ( doesDirectoryExist
                                                 , getDirectoryContents
+                                                , getHomeDirectory
                                                 )
 import           System.FilePath                ( (</>) )
 
@@ -21,6 +26,13 @@ data PaneState = PaneState
     }
     deriving Show
 
+
+-- Starting state for pane
+defaultPaneState :: IO PaneState
+defaultPaneState = do
+    mp <- getHomeDirectory
+    pf <- getDirectoryContents mp
+    return PaneState { mainPath = mp, pathFiles = pf, highlightedFileIdx = 0 }
 
 -- Highlight the next file
 highlightNextFile :: PaneState -> PaneState
@@ -55,3 +67,18 @@ enterHighlightedFile st = do
                 )
     isDir <- doesDirectoryExist currPath
     if isDir then return st else newSt
+
+
+data AppState = AppState
+    { paneCnt    :: Int
+    , currPane   :: Int
+    , paneStates :: IM.IntMap PaneState
+    }
+
+-- Starting state of App
+defaultAppState :: IO AppState
+defaultAppState = defaultPaneState >>= \ps -> return AppState
+    { paneCnt    = 1
+    , currPane   = 1
+    , paneStates = IM.fromList [(1, ps)]
+    }

@@ -19,10 +19,10 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/RedDocMD/dfm#readme>
 
 dependencies:
-- base >= 4.7 && < 5
 - vty
 - filepath
 - directory
+- rerebase
 
 ghc-options:
 - -Wall
