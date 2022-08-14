@@ -1,5 +1,7 @@
 module State
     ( PaneState(PaneState)
+    , pathFiles
+    , highlightedFileIdx
     , highlightNextFile
     , highlightPrevFile
     , highlightedFile
@@ -7,6 +9,7 @@ module State
     , defaultPaneState
     , AppState(AppState)
     , defaultAppState
+    , currPaneState
     ) where
 
 
@@ -82,3 +85,10 @@ defaultAppState = defaultPaneState >>= \ps -> return AppState
     , currPane   = 1
     , paneStates = IM.fromList [(1, ps)]
     }
+
+-- Current pane state
+currPaneState :: AppState -> PaneState
+currPaneState st = case IM.lookup (currPane st) (paneStates st) of
+    Just ps -> ps
+    Nothing -> error "invalid currPane"
+
