@@ -15,8 +15,8 @@ module State
 
 import qualified Data.IntMap                   as IM
 import           System.Directory               ( doesDirectoryExist
-                                                , getDirectoryContents
                                                 , getHomeDirectory
+                                                , listDirectory
                                                 )
 import           System.FilePath                ( (</>) )
 
@@ -30,11 +30,15 @@ data PaneState = PaneState
     deriving Show
 
 
+-- Generate directories sorted by order
+genDirs :: FilePath -> IO [FilePath]
+genDirs path = listDirectory path >>= \x -> return $ sort x
+
 -- Starting state for pane
 defaultPaneState :: IO PaneState
 defaultPaneState = do
     mp <- getHomeDirectory
-    pf <- getDirectoryContents mp
+    pf <- genDirs mp
     return PaneState { mainPath = mp, pathFiles = pf, highlightedFileIdx = 0 }
 
 -- Highlight the next file
@@ -61,7 +65,7 @@ enterHighlightedFile :: PaneState -> IO PaneState
 enterHighlightedFile st = do
     let currPath = highlightedFile st
         newSt    = do
-            contents <- getDirectoryContents currPath
+            contents <- genDirs currPath
             return
                 (st { mainPath           = currPath
                     , pathFiles          = contents
