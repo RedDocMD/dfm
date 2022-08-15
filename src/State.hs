@@ -21,25 +21,41 @@ import           System.Directory               ( doesDirectoryExist
 import           System.FilePath                ( (</>) )
 
 
+data FileListMode = Normal | Hidden deriving Show
+
 -- Contains the current state of the app
 data PaneState = PaneState
     { mainPath           :: FilePath
     , pathFiles          :: [FilePath]
     , highlightedFileIdx :: Int
+    , listMode           :: FileListMode
     }
     deriving Show
 
 
 -- Generate directories sorted by order
-genDirs :: FilePath -> IO [FilePath]
-genDirs path = listDirectory path >>= \x -> return $ sort x
+genDirs :: FilePath -> FileListMode -> IO [FilePath]
+genDirs path mode = do
+    paths <- listDirectory path
+    let sortedPaths = sort paths
+        nonDotPaths = filter (not . startsDot) sortedPaths
+        startsDot []      = False
+        startsDot (x : _) = x == '.'
+    case mode of
+        Hidden -> return sortedPaths
+        Normal -> return nonDotPaths
 
 -- Starting state for pane
 defaultPaneState :: IO PaneState
 defaultPaneState = do
+    let mode = Normal
     mp <- getHomeDirectory
-    pf <- genDirs mp
-    return PaneState { mainPath = mp, pathFiles = pf, highlightedFileIdx = 0 }
+    pf <- genDirs mp mode
+    return PaneState { mainPath           = mp
+                     , pathFiles          = pf
+                     , highlightedFileIdx = 0
+                     , listMode           = mode
+                     }
 
 -- Highlight the next file
 highlightNextFile :: PaneState -> PaneState
@@ -64,8 +80,9 @@ highlightedFile st = mainPath st </> (pathFiles st !! highlightedFileIdx st)
 enterHighlightedFile :: PaneState -> IO PaneState
 enterHighlightedFile st = do
     let currPath = highlightedFile st
+        mode     = listMode st
         newSt    = do
-            contents <- genDirs currPath
+            contents <- genDirs currPath mode
             return
                 (st { mainPath           = currPath
                     , pathFiles          = contents
