@@ -35,21 +35,14 @@ renderState :: Config -> AppState -> IO Image
 renderState cfg st = do
     width  <- terminalWidth cfg
     height <- terminalHeight cfg
-    let ps     = currPaneState st
-        plImg  = renderPathList ps
-        topBar = renderTopBar st width
-    return $ topBar `vertJoin` plImg
+    let ps       = currPaneState st
+        topBar   = renderTopBar st width
+        mainArea = renderPathListSide ps height width
+    return $ topBar `vertJoin` mainArea
 
 
 horizontalLine :: Int -> Image
 horizontalLine n = string defAttr $ replicate n '─'
-
-verticalLine :: Int -> Image
-verticalLine n = foldl vertJoin emptyImage $ replicate n (string defAttr "│")
-
-verticalSpacer :: Int -> Image
-verticalSpacer n =
-    foldl vertJoin emptyImage $ replicate n (string defAttr "  ")
 
 
 renderNormalPath :: FSEntry -> Image
@@ -156,7 +149,11 @@ renderPaneList st =
         string (defAttr `withForeColor` black `withBackColor` blue) (show n)
     spaceImg = string defAttr " "
 
+plWidth :: Int
+plWidth = 9
 
+-- Renders the entire top bar, with panel selector and path
+-- and a box around them
 renderTopBar :: AppState -> Int -> Image
 renderTopBar st width =
     let pl       = renderPaneList st
@@ -170,7 +167,6 @@ renderTopBar st width =
                                 `withStyle`     underline
                                 )
                                 path
-        plWidth   = 9 :: Int
         pimgWidth = length path + 1
         topLine   = string defAttr $ concat
             [ "┌"
@@ -198,3 +194,18 @@ renderTopBar st width =
             , vertLine
             ]
     in  foldl vertJoin emptyImage [topLine, mainLine, botLine]
+
+verticalLine :: Int -> Image
+verticalLine n = foldl vertJoin emptyImage $ replicate n (string defAttr "│")
+
+verticalSpacer :: Int -> Int -> Image
+verticalSpacer width n = foldl vertJoin emptyImage
+    $ replicate n (string defAttr $ replicate width ' ')
+
+
+renderPathListSide :: PaneState -> Int -> Int -> Image
+renderPathListSide st height width =
+    let pl         = renderPathList st
+        leftSpacer = verticalSpacer (plWidth + 3) (height - 6)
+        vl         = verticalLine (height - 6)
+    in  foldl horizJoin emptyImage [vl, leftSpacer, pl]
