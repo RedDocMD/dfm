@@ -23,6 +23,8 @@ dependencies:
 - filepath
 - directory
 - rerebase
+- unix
+- extra
 
 ghc-options:
 - -Wall
