@@ -10,7 +10,7 @@ import           FS                             ( FSEntry
                                                 , FileType(..)
                                                 )
 import           Graphics.Vty
-import           State                          ( AppState
+import           State                          ( AppState(currPane, paneCnt)
                                                 , PaneState
                                                 , currPaneState
                                                 , highlightedFileIdx
@@ -32,8 +32,10 @@ terminalHeight = fmap regionHeight . terminalSize
 
 renderState :: Config -> AppState -> IO Image
 renderState cfg st = do
-    let ps = currPaneState st
-    return $ renderPathList ps
+    let ps    = currPaneState st
+        plImg = renderPathList ps
+        psImg = renderPaneList st
+    return $ psImg <-> plImg
 
 
 renderNormalPath :: FSEntry -> Image
@@ -98,6 +100,7 @@ renderSelectedPath fse
     renderSpecFile =
         string (defAttr `withForeColor` black `withBackColor` yellow)
 
+-- Renders the list of paths
 renderPathList :: PaneState -> Image
 renderPathList st =
     renderNormalPaths before
@@ -117,3 +120,20 @@ dirsBeforeFiles fs =
         dirs  = filter isDir fs
     in  dirs ++ files
 
+
+-- Renders the little pane seletor list at the top
+renderPaneList :: AppState -> Image
+renderPaneList st = foldl horizJoin emptyImage (intersperse spaceImg mainImgs)
+  where
+    pc         = paneCnt st
+    cp         = currPane st
+    before     = take (cp - 1) [1 .. pc]
+    after      = drop cp [1 .. pc]
+    beforeImgs = map renderUnselectedPane before
+    afterImgs  = map renderUnselectedPane after
+    mainImgs   = beforeImgs ++ renderSelectedPane cp : afterImgs
+
+    renderUnselectedPane n = string (defAttr `withForeColor` blue) (show n)
+    renderSelectedPane n =
+        string (defAttr `withForeColor` black `withBackColor` blue) (show n)
+    spaceImg = string defAttr " "

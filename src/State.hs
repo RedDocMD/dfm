@@ -7,7 +7,7 @@ module State
     , highlightedFile
     , enterHighlightedFile
     , defaultPaneState
-    , AppState(AppState)
+    , AppState(..)
     , defaultAppState
     , currPaneState
     , visibleFiles
@@ -103,7 +103,7 @@ data AppState = AppState
 -- Starting state of App
 defaultAppState :: IO AppState
 defaultAppState = defaultPaneState >>= \ps -> return AppState
-    { paneCnt    = 1
+    { paneCnt    = 4
     , currPane   = 1
     , paneStates = IM.fromList [(1, ps)]
     }
