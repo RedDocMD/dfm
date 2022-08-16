@@ -5,7 +5,6 @@ module FS
     , FileType(..)
     ) where
 
-import           Data.List.Extra
 import           System.Directory               ( listDirectory )
 import           System.FilePath
 import           System.Posix.Files
@@ -19,18 +18,14 @@ data FSEntry = FSEntry
     }
     deriving Show
 
-instance Ord FSEntry where
-    l <= r = lower (name l) <= lower (name r)
-
-instance Eq FSEntry where
-    l == r = name l == name r
-
+-- Check if it is hidden folder (ie, starts with dot)
 isHiddenFile :: FSEntry -> Bool
 isHiddenFile = startsDot . name
   where
     startsDot []      = False
     startsDot (x : _) = x == '.'
 
+-- listDirectory but for FSEntry's
 listFSEntry :: FilePath -> IO [FSEntry]
 listFSEntry fp = do
     subEntries <- listDirectory fp

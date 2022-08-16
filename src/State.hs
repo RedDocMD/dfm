@@ -15,6 +15,7 @@ module State
 
 
 import qualified Data.IntMap                   as IM
+import           Data.List.Extra
 import           FS
 import           System.Directory
 import           System.FilePath
@@ -34,7 +35,8 @@ data FileListMode = Normal | Hidden deriving (Show, Eq)
 
 -- Generate directories sorted by order
 genDirs :: FilePath -> IO [FSEntry]
-genDirs path = listFSEntry path >>= \x -> return $ sort x
+genDirs path = listFSEntry path >>= \x ->
+    return $ sortBy (\l r -> lower (name l) `compare` lower (name r)) x
 
 -- Starting state for pane
 defaultPaneState :: IO PaneState
