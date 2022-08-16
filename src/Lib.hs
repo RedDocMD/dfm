@@ -12,30 +12,44 @@ import           FS                             ( FSEntry
 import           Graphics.Vty
 import           State                          ( AppState(currPane, paneCnt)
                                                 , PaneState
+                                                , currPanePath
                                                 , currPaneState
                                                 , highlightedFileIdx
                                                 , visibleFiles
                                                 )
 
--- Size of terminal
 terminalSize :: Config -> IO DisplayRegion
 terminalSize cfg = outputForConfig cfg >>= displayBounds
 
--- Width of terminal
 terminalWidth :: Config -> IO Int
 terminalWidth = fmap regionWidth . terminalSize
 
--- Region of terminal
 terminalHeight :: Config -> IO Int
 terminalHeight = fmap regionHeight . terminalSize
 
 
+-- Primary rendering function
+-- Given a Config of the terminal and an AppState,
+-- it will give you an Image.
 renderState :: Config -> AppState -> IO Image
 renderState cfg st = do
-    let ps    = currPaneState st
-        plImg = renderPathList ps
-        psImg = renderPaneList st
-    return $ psImg <-> plImg
+    width  <- terminalWidth cfg
+    height <- terminalHeight cfg
+    let ps     = currPaneState st
+        plImg  = renderPathList ps
+        topBar = renderTopBar st width
+    return $ topBar `vertJoin` plImg
+
+
+horizontalLine :: Int -> Image
+horizontalLine n = string defAttr $ replicate n '─'
+
+verticalLine :: Int -> Image
+verticalLine n = foldl vertJoin emptyImage $ replicate n (string defAttr "│")
+
+verticalSpacer :: Int -> Image
+verticalSpacer n =
+    foldl vertJoin emptyImage $ replicate n (string defAttr "  ")
 
 
 renderNormalPath :: FSEntry -> Image
@@ -123,7 +137,11 @@ dirsBeforeFiles fs =
 
 -- Renders the little pane seletor list at the top
 renderPaneList :: AppState -> Image
-renderPaneList st = foldl horizJoin emptyImage (intersperse spaceImg mainImgs)
+renderPaneList st =
+    foldl horizJoin emptyImage
+        $  [spaceImg]
+        ++ intersperse spaceImg mainImgs
+        ++ [spaceImg]
   where
     pc         = paneCnt st
     cp         = currPane st
@@ -137,3 +155,46 @@ renderPaneList st = foldl horizJoin emptyImage (intersperse spaceImg mainImgs)
     renderSelectedPane n =
         string (defAttr `withForeColor` black `withBackColor` blue) (show n)
     spaceImg = string defAttr " "
+
+
+renderTopBar :: AppState -> Int -> Image
+renderTopBar st width =
+    let pl       = renderPaneList st
+        path     = currPanePath st
+        spaceImg = string defAttr " "
+        pimg =
+            spaceImg
+                `horizJoin` string
+                                (               defAttr
+                                `withForeColor` blue
+                                `withStyle`     underline
+                                )
+                                path
+        plWidth   = 9 :: Int
+        pimgWidth = length path + 1
+        topLine   = string defAttr $ concat
+            [ "┌"
+            , replicate plWidth '─'
+            , "┬"
+            , replicate (width - (plWidth + 3)) '─'
+            , "┐"
+            ]
+        botLine = string defAttr $ concat
+            [ "├"
+            , replicate plWidth '─'
+            , "┴"
+            , replicate (width - (plWidth + 3)) '─'
+            , "┤"
+            ]
+        vertLine = string defAttr "│"
+        mainLine = foldl
+            horizJoin
+            emptyImage
+            [ vertLine
+            , pl
+            , vertLine
+            , pimg
+            , string defAttr $ replicate (width - (plWidth + pimgWidth + 3)) ' '
+            , vertLine
+            ]
+    in  foldl vertJoin emptyImage [topLine, mainLine, botLine]

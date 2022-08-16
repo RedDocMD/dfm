@@ -11,6 +11,7 @@ module State
     , defaultAppState
     , currPaneState
     , visibleFiles
+    , currPanePath
     ) where
 
 
@@ -113,3 +114,7 @@ currPaneState :: AppState -> PaneState
 currPaneState st = case IM.lookup (currPane st) (paneStates st) of
     Just ps -> ps
     Nothing -> error "invalid currPane"
+
+-- Current pane path
+currPanePath :: AppState -> FilePath
+currPanePath = mainPath . currPaneState
