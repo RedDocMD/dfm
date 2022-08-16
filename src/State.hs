@@ -10,47 +10,38 @@ module State
     , AppState(AppState)
     , defaultAppState
     , currPaneState
+    , visibleFiles
     ) where
 
 
 import qualified Data.IntMap                   as IM
-import           System.Directory               ( doesDirectoryExist
-                                                , getHomeDirectory
-                                                , listDirectory
-                                                )
-import           System.FilePath                ( (</>) )
+import           FS
+import           System.Directory
+import           System.FilePath
 
-
-data FileListMode = Normal | Hidden deriving Show
 
 -- Contains the current state of the app
 data PaneState = PaneState
     { mainPath           :: FilePath
-    , pathFiles          :: [FilePath]
+    , pathFiles          :: [FSEntry]
     , highlightedFileIdx :: Int
     , listMode           :: FileListMode
     }
     deriving Show
 
+data FileListMode = Normal | Hidden deriving (Show, Eq)
+
 
 -- Generate directories sorted by order
-genDirs :: FilePath -> FileListMode -> IO [FilePath]
-genDirs path mode = do
-    paths <- listDirectory path
-    let sortedPaths = sort paths
-        nonDotPaths = filter (not . startsDot) sortedPaths
-        startsDot []      = False
-        startsDot (x : _) = x == '.'
-    case mode of
-        Hidden -> return sortedPaths
-        Normal -> return nonDotPaths
+genDirs :: FilePath -> IO [FSEntry]
+genDirs path = listFSEntry path >>= \x -> return $ sort x
 
 -- Starting state for pane
 defaultPaneState :: IO PaneState
 defaultPaneState = do
     let mode = Normal
     mp <- getHomeDirectory
-    pf <- genDirs mp mode
+    pf <- genDirs mp
     return PaneState { mainPath           = mp
                      , pathFiles          = pf
                      , highlightedFileIdx = 0
@@ -73,16 +64,16 @@ highlightPrevFile st = st
 
 -- Get current highlighted file
 highlightedFile :: PaneState -> FilePath
-highlightedFile st = mainPath st </> (pathFiles st !! highlightedFileIdx st)
+highlightedFile st =
+    mainPath st </> name (pathFiles st !! highlightedFileIdx st)
 
 -- If the highlighted file is a directory, then that becomes the
 -- main path. Otherwise, nothing happens.
 enterHighlightedFile :: PaneState -> IO PaneState
 enterHighlightedFile st = do
     let currPath = highlightedFile st
-        mode     = listMode st
         newSt    = do
-            contents <- genDirs currPath mode
+            contents <- genDirs currPath
             return
                 (st { mainPath           = currPath
                     , pathFiles          = contents
@@ -91,6 +82,14 @@ enterHighlightedFile st = do
                 )
     isDir <- doesDirectoryExist currPath
     if isDir then return st else newSt
+
+
+-- List of visible files according to list mode
+visibleFiles :: PaneState -> [FSEntry]
+visibleFiles ps =
+    let selector =
+            if listMode ps == Normal then not . isHiddenFile else const True
+    in  filter selector (pathFiles ps)
 
 
 data AppState = AppState
@@ -112,4 +111,3 @@ currPaneState :: AppState -> PaneState
 currPaneState st = case IM.lookup (currPane st) (paneStates st) of
     Just ps -> ps
     Nothing -> error "invalid currPane"
-

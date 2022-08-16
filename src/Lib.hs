@@ -2,12 +2,19 @@ module Lib
     ( renderState
     ) where
 
+import           FS                             ( FSEntry
+                                                    ( fileType
+                                                    , isSymLink
+                                                    , name
+                                                    )
+                                                , FileType(..)
+                                                )
 import           Graphics.Vty
 import           State                          ( AppState
                                                 , PaneState
                                                 , currPaneState
                                                 , highlightedFileIdx
-                                                , pathFiles
+                                                , visibleFiles
                                                 )
 
 -- Size of terminal
@@ -29,15 +36,67 @@ renderState cfg st = do
     return $ renderPathList ps
 
 
-renderNormalPath :: String -> Image
-renderNormalPath = string defAttr
+renderNormalPath :: FSEntry -> Image
+renderNormalPath fse
+    | ft == Directory = if sl then renderDirSymLink nm else renderDir nm
+    | sl              = renderSymLink nm
+    | ft == File      = renderFile nm
+    | otherwise       = renderSpecFile nm
+  where
+    ft = fileType fse
+    sl = isSymLink fse
+    nm = name fse
 
-renderNormalPaths :: [String] -> Image
+    renderDir fp =
+        string (defAttr `withForeColor` blue `withStyle` bold) fp
+            Graphics.Vty.<|> string defAttr "/"
+    renderDirSymLink fp =
+        string (defAttr `withForeColor` brightCyan `withStyle` bold) fp
+            Graphics.Vty.<|> string defAttr "/"
+    renderSymLink fp = string (defAttr `withForeColor` cyan) (fp ++ "@")
+    renderFile     = string defAttr
+    renderSpecFile = string (defAttr `withForeColor` yellow)
+
+
+renderNormalPaths :: [FSEntry] -> Image
 renderNormalPaths = foldl vertJoin emptyImage . map renderNormalPath
 
-renderSelectedPath :: String -> Image
-renderSelectedPath =
-    string (defAttr `withForeColor` black `withBackColor` white)
+
+renderSelectedPath :: FSEntry -> Image
+renderSelectedPath fse
+    | ft == Directory = if sl then renderDirSymLink nm else renderDir nm
+    | sl              = renderSymLink nm
+    | ft == File      = renderFile nm
+    | otherwise       = renderSpecFile nm
+  where
+    ft = fileType fse
+    sl = isSymLink fse
+    nm = name fse
+
+    renderDir fp =
+        string
+                (               defAttr
+                `withForeColor` black
+                `withBackColor` blue
+                `withStyle`     bold
+                )
+                fp
+            Graphics.Vty.<|> string defAttr "/"
+    renderDirSymLink fp =
+        string
+                (               defAttr
+                `withForeColor` black
+                `withBackColor` brightCyan
+                `withStyle`     bold
+                )
+                fp
+            Graphics.Vty.<|> string defAttr "/"
+    renderSymLink fp =
+        string (defAttr `withForeColor` black `withBackColor` cyan) fp
+            Graphics.Vty.<|> string defAttr "@"
+    renderFile = string (defAttr `withForeColor` black `withBackColor` white)
+    renderSpecFile =
+        string (defAttr `withForeColor` black `withBackColor` yellow)
 
 renderPathList :: PaneState -> Image
 renderPathList st =
@@ -45,8 +104,16 @@ renderPathList st =
         <-> renderSelectedPath sel
         <-> renderNormalPaths after
   where
-    paths  = pathFiles st
+    paths  = dirsBeforeFiles $ visibleFiles st
     sidx   = highlightedFileIdx st
     before = take sidx paths
     sel    = paths !! sidx
     after  = tail $ drop sidx paths
+
+dirsBeforeFiles :: [FSEntry] -> [FSEntry]
+dirsBeforeFiles fs =
+    let isDir f = fileType f == Directory
+        files = filter (not . isDir) fs
+        dirs  = filter isDir fs
+    in  dirs ++ files
+
