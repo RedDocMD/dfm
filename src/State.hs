@@ -7,6 +7,7 @@ module State
     , highlightedFile
     , enterHighlightedFile
     , defaultPaneState
+    , highlightedIdxOrder
     , AppState(..)
     , defaultAppState
     , currPaneState
@@ -68,7 +69,7 @@ highlightPrevFile st = st
 -- Get current highlighted file
 highlightedFile :: PaneState -> FilePath
 highlightedFile st =
-    mainPath st </> name (pathFiles st !! highlightedFileIdx st)
+    mainPath st </> name (visibleFiles st !! highlightedFileIdx st)
 
 -- If the highlighted file is a directory, then that becomes the
 -- main path. Otherwise, nothing happens.
@@ -93,6 +94,14 @@ visibleFiles ps =
     let selector =
             if listMode ps == Normal then not . isHiddenFile else const True
     in  filter selector (pathFiles ps)
+
+-- Returns a string of the form "x/y" where file x is highlighted
+-- with total of y files
+highlightedIdxOrder :: PaneState -> String
+highlightedIdxOrder ps = show (cs + 1) ++ "/" ++ show tot
+  where
+    cs  = highlightedFileIdx ps
+    tot = length $ visibleFiles ps
 
 
 data AppState = AppState

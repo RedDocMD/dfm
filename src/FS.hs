@@ -52,4 +52,3 @@ fileStatusToType fs | isBlockDevice fs     = BlockDevice
                     | isRegularFile fs     = File
                     | isDirectory fs       = Directory
                     | otherwise            = error "Unknown file type"
-
