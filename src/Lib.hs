@@ -190,9 +190,11 @@ renderBottomBar ps = do
     let timeImg = string attr $ formatTime defaultTimeLocale timeFormat mtime
     perm <- permissions hf
     let permImg = string attr perm
+    sz <- size hf
+    let szImg = string attr sz
     return $ foldl horizJoin emptyImage $ intersperse
         spaceImg
-        [cntImg, timeImg, permImg]
+        [cntImg, timeImg, permImg, szImg]
   where
     attr       = defAttr `withForeColor` blue
     spaceImg   = string attr " "
@@ -205,6 +207,9 @@ modTime path = getFileStatus path
 
 permissions :: FilePath -> IO String
 permissions path = getFileStatus path >>= \x -> return $ permissionString x
+
+size :: FilePath -> IO String
+size path = getFileStatus path >>= \x -> return $ hrSize $ fileSize x
 
 permissionString :: FileStatus -> String
 permissionString fs = fileTypeStr
@@ -281,3 +286,16 @@ permissionsToString perm = concat
         (True , False) -> "x"
         (False, True ) -> "T"
         (True , True ) -> "t"
+
+-- Human readable size
+hrSize :: (Integral a, Show a) => a -> String
+hrSize sz
+    | sz < kib  = show sz ++ "B"
+    | sz < mib  = show ((fromIntegral sz :: Double) / fromIntegral kib) ++ "K"
+    | sz < gib  = show ((fromIntegral sz :: Double) / fromIntegral mib) ++ "M"
+    | otherwise = show ((fromIntegral sz :: Double) / fromIntegral gib) ++ "G"
+  where
+    two = 2
+    kib = two ^ (10 :: Int)
+    mib = two ^ (20 :: Int)
+    gib = two ^ (30 :: Int)
