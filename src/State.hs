@@ -57,7 +57,7 @@ highlightNextFile :: PaneState -> PaneState
 highlightNextFile st = st
     { highlightedFileIdx = nextFileIdx (highlightedFileIdx st)
     }
-    where nextFileIdx idx = min (length $ pathFiles st) (idx + 1)
+    where nextFileIdx idx = min (length $ visibleFiles st) (idx + 1)
 
 -- Highlight the prev file
 highlightPrevFile :: PaneState -> PaneState

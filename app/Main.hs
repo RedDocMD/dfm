@@ -3,14 +3,14 @@ module Main
     ) where
 
 import           Graphics.Vty
-import           Lib                            ( renderState )
-import           State                          ( defaultAppState )
+import           Lib
+import           State
 
 main :: IO ()
 main = do
     cfg <- standardIOConfig
     vty <- mkVty cfg
-    as <- defaultAppState
+    as  <- defaultAppState
     img <- renderState cfg as
     update vty $ picForImage img
     e <- nextEvent vty

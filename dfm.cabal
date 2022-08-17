@@ -26,6 +26,7 @@ library
   exposed-modules:
       FS
       Lib
+      Render
       State
   other-modules:
       Paths_dfm
