@@ -201,9 +201,12 @@ renderBottomBar ps = do
     cntImg     = string attr $ highlightedIdxOrder ps
     timeFormat = "%d-%m-%Y %H:%M"
 
-modTime :: FilePath -> IO UTCTime
-modTime path = getFileStatus path
-    >>= \x -> return (posixSecondsToUTCTime (modificationTimeHiRes x))
+modTime :: FilePath -> IO LocalTime
+modTime path = do
+    fs <- getFileStatus path
+    tz <- getCurrentTimeZone
+    let utcTime = posixSecondsToUTCTime (modificationTimeHiRes fs)
+    return $ utcToLocalTime tz utcTime
 
 permissions :: FilePath -> IO String
 permissions path = getFileStatus path >>= \x -> return $ permissionString x
