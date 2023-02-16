@@ -31,5 +31,22 @@ renderState cfg st = do
     return $ topBar `vertJoin` mainArea `vertJoin` bottomBar
 
 
+
+-- Primary event handling function
+-- Given a Config of the terminal, an AppState and the Event
+-- it will give the new AppState and Bool to tell if you have to quit
 updateState :: Config -> AppState -> Event -> IO (AppState, Bool)
-updateState cfg st ev = return (st, False)
+updateState cfg st (EvKey key mods) = updateStateKey cfg st key mods
+updateState _   st _                = return (st, False)
+
+
+updateStateKey
+    :: Config -> AppState -> Key -> [Modifier] -> IO (AppState, Bool)
+updateStateKey cfg st (KChar ch) mods = updateStateCh cfg st ch mods
+updateStateKey _   st _          _    = return (st, False)
+
+
+updateStateCh
+    :: Config -> AppState -> Char -> [Modifier] -> IO (AppState, Bool)
+updateStateCh _ st 'q' [] = return (st, True)
+updateStateCh _ st _   _  = return (st, False)
