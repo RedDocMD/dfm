@@ -8,6 +8,7 @@ module State
     , enterHighlightedFile
     , defaultPaneState
     , highlightedIdxOrder
+    , pOffset
     , AppState(..)
     , defaultAppState
     , currPaneState
@@ -29,6 +30,7 @@ data PaneState = PaneState
     , pathFiles          :: [FSEntry]
     , highlightedFileIdx :: Int
     , listMode           :: FileListMode
+    , pOffset            :: Int
     }
     deriving Show
 
@@ -50,6 +52,7 @@ defaultPaneState = do
                      , pathFiles          = pf
                      , highlightedFileIdx = 0
                      , listMode           = mode
+                     , pOffset            = 0
                      }
 
 -- Highlight the next file

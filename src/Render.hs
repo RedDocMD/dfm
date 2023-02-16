@@ -73,17 +73,19 @@ renderSelectedPath fse
         string (defAttr `withForeColor` black `withBackColor` yellow)
 
 -- Renders the list of paths
-renderPathList :: PaneState -> Image
-renderPathList st =
+renderPathList :: PaneState -> Int -> Image
+renderPathList st height =
     renderNormalPaths before
         <-> renderSelectedPath sel
         <-> renderNormalPaths after
   where
-    paths  = dirsBeforeFiles $ visibleFiles st
-    sidx   = highlightedFileIdx st
-    before = take sidx paths
-    sel    = paths !! sidx
-    after  = tail $ drop sidx paths
+    paths        = dirsBeforeFiles $ visibleFiles st
+    off          = pOffset st
+    visiblePaths = take (height - 4) $ drop off paths
+    sidx         = highlightedFileIdx st - off
+    before       = take sidx visiblePaths
+    sel          = visiblePaths !! sidx
+    after        = tail $ drop sidx visiblePaths
 
 dirsBeforeFiles :: [FSEntry] -> [FSEntry]
 dirsBeforeFiles fs =
@@ -136,10 +138,9 @@ verticalSpacer width n = foldl vertJoin emptyImage
     $ replicate n (string defAttr $ replicate width ' ')
 
 -- FIXME: Handle horizontal wrapping of paths
--- FIXME: Handle vertical scrolling and offsets
 renderPathListSide :: PaneState -> Int -> Int -> Image
 renderPathListSide st height width =
-    let pl         = renderPathList st
+    let pl         = renderPathList st height
         leftSpacer = verticalSpacer (plWidth + 1) (height - 3)
         spaceLine  = string defAttr $ replicate width ' '
     in  spaceLine `vertJoin` (leftSpacer `horizJoin` pl)
