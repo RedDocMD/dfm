@@ -1,5 +1,6 @@
 module Lib
     ( renderState
+    , updateState
     ) where
 
 import           Graphics.Vty
@@ -28,3 +29,7 @@ renderState cfg st = do
         mainArea = renderMainArea ps height width
     bottomBar <- renderBottomBar ps
     return $ topBar `vertJoin` mainArea `vertJoin` bottomBar
+
+
+updateState :: Config -> AppState -> Event -> IO (AppState, Bool)
+updateState cfg st ev = return (st, False)

@@ -9,10 +9,14 @@ import           State
 main :: IO ()
 main = do
     cfg <- standardIOConfig
-    vty <- mkVty cfg
     as  <- defaultAppState
+    mainLoop cfg as
+
+mainLoop :: Config -> AppState -> IO ()
+mainLoop cfg as = do
+    vty <- mkVty cfg
     img <- renderState cfg as
     update vty $ picForImage img
-    e <- nextEvent vty
-    shutdown vty
-    print ("Last event was: " ++ show e)
+    ev            <- nextEvent vty
+    (newAs, quit) <- updateState cfg as ev
+    if quit then shutdown vty else mainLoop cfg newAs
