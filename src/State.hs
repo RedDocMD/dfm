@@ -14,6 +14,8 @@ module State
     , currPaneState
     , visibleFiles
     , currPanePath
+    , scrollUp
+    , scrollDown
     ) where
 
 
@@ -22,6 +24,7 @@ import           Data.List.Extra
 import           FS
 import           System.Directory
 import           System.FilePath
+import           Util                           ( pathListHeight )
 
 
 -- Contains the current state of the app
@@ -106,6 +109,26 @@ highlightedIdxOrder ps = show (cs + 1) ++ "/" ++ show tot
     cs  = highlightedFileIdx ps
     tot = length $ visibleFiles ps
 
+-- Scroll down one line when height of terminal is
+-- ht
+paneScrollDown :: PaneState -> Int -> PaneState
+paneScrollDown st ht = st { highlightedFileIdx = nIdx, pOffset = nOffset }
+  where
+    aht     = pathListHeight ht
+    nIdx    = min (highlightedFileIdx st + 1) (length $ visibleFiles st)
+    offset  = pOffset st
+    nOffset = if nIdx - offset + 1 > aht then offset + 1 else offset
+
+-- Scroll up one line when height of terminal is
+-- ht
+paneScrollUp :: PaneState -> Int -> PaneState
+paneScrollUp st _ = st { highlightedFileIdx = nIdx, pOffset = nOffset }
+  where
+    nIdx    = max (highlightedFileIdx st - 1) 0
+    offset  = pOffset st
+    nOffset = if nIdx < offset then offset - 1 else offset
+
+
 
 data AppState = AppState
     { paneCnt    :: Int
@@ -130,3 +153,21 @@ currPaneState st = case IM.lookup (currPane st) (paneStates st) of
 -- Current pane path
 currPanePath :: AppState -> FilePath
 currPanePath = mainPath . currPaneState
+
+-- Scroll up the current pane
+scrollUp :: AppState -> Int -> AppState
+scrollUp st ht =
+    let ps  = currPaneState st
+        nps = paneScrollUp ps ht
+        pss = paneStates st
+        cp  = currPane st
+    in  st { paneStates = IM.insert cp nps pss }
+
+-- Scroll down the current pane
+scrollDown :: AppState -> Int -> AppState
+scrollDown st ht =
+    let ps  = currPaneState st
+        nps = paneScrollDown ps ht
+        pss = paneStates st
+        cp  = currPane st
+    in  st { paneStates = IM.insert cp nps pss }

@@ -8,6 +8,7 @@ import           FS
 import           Graphics.Vty
 import           State
 import           System.Posix
+import           Util                           ( pathListHeight )
 
 
 renderNormalPath :: FSEntry -> Image
@@ -81,7 +82,7 @@ renderPathList st height =
   where
     paths        = dirsBeforeFiles $ visibleFiles st
     off          = pOffset st
-    visiblePaths = take (height - 4) $ drop off paths
+    visiblePaths = take (pathListHeight height) $ drop off paths
     sidx         = highlightedFileIdx st - off
     before       = take sidx visiblePaths
     sel          = visiblePaths !! sidx

@@ -48,5 +48,13 @@ updateStateKey _   st _          _    = return (st, False)
 
 updateStateCh
     :: Config -> AppState -> Char -> [Modifier] -> IO (AppState, Bool)
-updateStateCh _ st 'q' [] = return (st, True)
-updateStateCh _ st _   _  = return (st, False)
+updateStateCh _   st 'q' [] = return (st, True)
+updateStateCh cfg st 'j' [] = do
+    ht <- terminalHeight cfg
+    let nst = scrollDown st ht
+    return (nst, False)
+updateStateCh cfg st 'k' [] = do
+    ht <- terminalHeight cfg
+    let nst = scrollUp st ht
+    return (nst, False)
+updateStateCh _ st _ _ = return (st, False)

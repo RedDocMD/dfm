@@ -28,6 +28,7 @@ library
       Lib
       Render
       State
+      Util
   other-modules:
       Paths_dfm
   hs-source-dirs:
