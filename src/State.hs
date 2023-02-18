@@ -115,7 +115,7 @@ paneScrollDown :: PaneState -> Int -> PaneState
 paneScrollDown st ht = st { highlightedFileIdx = nIdx, pOffset = nOffset }
   where
     aht     = pathListHeight ht
-    nIdx    = min (highlightedFileIdx st + 1) (length $ visibleFiles st)
+    nIdx    = min (highlightedFileIdx st + 1) (length (visibleFiles st) - 1)
     offset  = pOffset st
     nOffset = if nIdx - offset + 1 > aht then offset + 1 else offset
 

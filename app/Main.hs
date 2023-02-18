@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Main
     ( main
     ) where
@@ -34,7 +32,7 @@ mainLoop shouldExit = do
 updateDisplay :: App ()
 updateDisplay = do
     vs  <- ask
-    as <- get
+    as  <- get
     img <- liftIO $ renderState (mCfg vs) as
     let pic = picForImage img
     liftIO $ update (mVty vs) pic
