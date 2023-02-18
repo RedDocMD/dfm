@@ -25,6 +25,7 @@ dependencies:
 - rerebase
 - unix
 - extra
+- logging
 
 ghc-options:
 - -Wall

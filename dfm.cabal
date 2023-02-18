@@ -38,6 +38,7 @@ library
       directory
     , extra
     , filepath
+    , logging
     , rerebase
     , unix
     , vty
@@ -55,6 +56,7 @@ executable dfm-exe
     , directory
     , extra
     , filepath
+    , logging
     , rerebase
     , unix
     , vty
@@ -73,6 +75,7 @@ test-suite dfm-test
     , directory
     , extra
     , filepath
+    , logging
     , rerebase
     , unix
     , vty
