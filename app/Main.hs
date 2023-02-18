@@ -4,38 +4,51 @@ module Main
     ( main
     ) where
 
-import           Control.Logging                ( withFileLogging )
-import qualified Control.Logging               as Log
-import           Data.Text                      ( pack )
-import           Graphics.Vty                   ( Config
-                                                , mkVty
-                                                , nextEvent
-                                                , picForImage
-                                                , shutdown
-                                                , standardIOConfig
-                                                , update
-                                                )
-import           Lib                            ( renderState
-                                                , updateState
-                                                )
-import           State                          ( AppState
-                                                , defaultAppState
-                                                )
+import           Control.Monad.RWS
+import           Graphics.Vty
+import           Lib
+import           State
+
+data VtyState = VtyState
+    { mVty :: Vty
+    , mCfg :: Config
+    }
+
+type App = RWST VtyState () AppState IO
 
 main :: IO ()
-main = withFileLogging "/tmp/dfm.log" $ do
+main = do
     cfg <- standardIOConfig
     as  <- defaultAppState
-    mainLoop cfg as
-
-mainLoop :: Config -> AppState -> IO ()
-mainLoop cfg as = do
-    Log.log "At the beginning of new loop"
     vty <- mkVty cfg
-    img <- renderState cfg as
-    update vty $ picForImage img
-    Log.log "Waiting for event"
-    ev <- nextEvent vty
-    Log.log (pack $ show ev)
-    (newAs, quit) <- updateState cfg as ev
-    if quit then shutdown vty else mainLoop cfg newAs
+    let ts = VtyState { mVty = vty, mCfg = cfg }
+    _ <- execRWST (mainLoop False) ts as
+    shutdown vty
+
+
+mainLoop :: Bool -> App ()
+mainLoop shouldExit = do
+    updateDisplay
+    unless shouldExit $ handleNextEvent >>= mainLoop
+
+updateDisplay :: App ()
+updateDisplay = do
+    vs  <- ask
+    as <- get
+    img <- liftIO $ renderState (mCfg vs) as
+    let pic = picForImage img
+    liftIO $ update (mVty vs) pic
+
+handleNextEvent :: App Bool
+handleNextEvent = do
+    vs <- ask
+    ev <- liftIO $ nextEvent (mVty vs)
+    handleEvent (mCfg vs) ev
+  where
+    handleEvent :: Config -> Event -> App Bool
+    handleEvent cfg ev = do
+        as  <- get
+        nas <- liftIO $ updateState cfg as ev
+        put nas
+        return $ ev == EvKey (KChar 'q') []
+

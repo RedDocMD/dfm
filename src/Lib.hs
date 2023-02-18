@@ -35,26 +35,23 @@ renderState cfg st = do
 -- Primary event handling function
 -- Given a Config of the terminal, an AppState and the Event
 -- it will give the new AppState and Bool to tell if you have to quit
-updateState :: Config -> AppState -> Event -> IO (AppState, Bool)
+updateState :: Config -> AppState -> Event -> IO AppState
 updateState cfg st (EvKey key mods) = updateStateKey cfg st key mods
-updateState _   st _                = return (st, False)
+updateState _   st _                = return st
 
 
-updateStateKey
-    :: Config -> AppState -> Key -> [Modifier] -> IO (AppState, Bool)
+updateStateKey :: Config -> AppState -> Key -> [Modifier] -> IO AppState
 updateStateKey cfg st (KChar ch) mods = updateStateCh cfg st ch mods
-updateStateKey _   st _          _    = return (st, False)
+updateStateKey _   st _          _    = return st
 
 
-updateStateCh
-    :: Config -> AppState -> Char -> [Modifier] -> IO (AppState, Bool)
-updateStateCh _   st 'q' [] = return (st, True)
+updateStateCh :: Config -> AppState -> Char -> [Modifier] -> IO AppState
 updateStateCh cfg st 'j' [] = do
     ht <- terminalHeight cfg
     let nst = scrollDown st ht
-    return (nst, False)
+    return nst
 updateStateCh cfg st 'k' [] = do
     ht <- terminalHeight cfg
     let nst = scrollUp st ht
-    return (nst, False)
-updateStateCh _ st _ _ = return (st, False)
+    return nst
+updateStateCh _ st _ _ = return st
