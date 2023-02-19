@@ -18,6 +18,7 @@ module State
     , scrollDown
     , resizeTerminal
     , recalculateOffsets
+    , setCurrentPane
     ) where
 
 
@@ -153,7 +154,7 @@ defaultAppState :: Int -> Int -> IO AppState
 defaultAppState width height = defaultPaneState >>= \ps -> return AppState
     { paneCnt    = 4
     , currPane   = 1
-    , paneStates = IM.fromList [(1, ps)]
+    , paneStates = IM.fromList $ [ (i, ps) | i <- [1 .. 4] ]
     , tWidth     = width
     , tHeight    = height
     }
@@ -196,3 +197,7 @@ recalculateOffsets st =
     let ht          = tHeight st
         nPaneStates = IM.map (`paneRecalculateOffset` ht) (paneStates st)
     in  st { paneStates = nPaneStates }
+
+setCurrentPane :: AppState -> Int -> AppState
+setCurrentPane st idx =
+    st { currPane = if idx >= 1 && idx <= paneCnt st then idx else currPane st }

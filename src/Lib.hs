@@ -52,4 +52,8 @@ updateStateKey st _          _    = return st
 updateStateCh :: AppState -> Char -> [Modifier] -> IO AppState
 updateStateCh st 'j' [] = return $ scrollDown st
 updateStateCh st 'k' [] = return $ scrollUp st
+updateStateCh st '1' [] = return $ setCurrentPane st 1
+updateStateCh st '2' [] = return $ setCurrentPane st 2
+updateStateCh st '3' [] = return $ setCurrentPane st 3
+updateStateCh st '4' [] = return $ setCurrentPane st 4
 updateStateCh st _   _  = return st
