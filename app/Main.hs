@@ -7,20 +7,16 @@ import           Graphics.Vty
 import           Lib
 import           State
 
-data VtyState = VtyState
-    { mVty :: Vty
-    , mCfg :: Config
-    }
-
-type App = RWST VtyState () AppState IO
+type App = RWST Vty () AppState IO
 
 main :: IO ()
 main = do
-    cfg <- standardIOConfig
-    as  <- defaultAppState
-    vty <- mkVty cfg
-    let ts = VtyState { mVty = vty, mCfg = cfg }
-    _ <- execRWST (mainLoop False) ts as
+    cfg    <- standardIOConfig
+    width  <- terminalWidth cfg
+    height <- terminalHeight cfg
+    as     <- defaultAppState width height
+    vty    <- mkVty cfg
+    _      <- execRWST (mainLoop False) vty as
     shutdown vty
 
 
@@ -31,22 +27,22 @@ mainLoop shouldExit = do
 
 updateDisplay :: App ()
 updateDisplay = do
-    vs  <- ask
+    vty <- ask
     as  <- get
-    img <- liftIO $ renderState (mCfg vs) as
+    img <- liftIO $ renderState as
     let pic = picForImage img
-    liftIO $ update (mVty vs) pic
+    liftIO $ update vty pic
 
 handleNextEvent :: App Bool
 handleNextEvent = do
-    vs <- ask
-    ev <- liftIO $ nextEvent (mVty vs)
-    handleEvent (mCfg vs) ev
+    vty <- ask
+    ev  <- liftIO $ nextEvent vty
+    handleEvent ev
   where
-    handleEvent :: Config -> Event -> App Bool
-    handleEvent cfg ev = do
+    handleEvent :: Event -> App Bool
+    handleEvent ev = do
         as  <- get
-        nas <- liftIO $ updateState cfg as ev
+        nas <- liftIO $ updateState as ev
         put nas
         return $ ev == EvKey (KChar 'q') []
 

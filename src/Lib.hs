@@ -1,6 +1,8 @@
 module Lib
     ( renderState
     , updateState
+    , terminalWidth
+    , terminalHeight
     ) where
 
 import           Graphics.Vty
@@ -20,12 +22,12 @@ terminalHeight = fmap regionHeight . terminalSize
 -- Primary rendering function
 -- Given a Config of the terminal and an AppState,
 -- it will give you an Image.
-renderState :: Config -> AppState -> IO Image
-renderState cfg st = do
-    width  <- terminalWidth cfg
-    height <- terminalHeight cfg
+renderState :: AppState -> IO Image
+renderState st = do
     let ps       = currPaneState st
         topBar   = renderTopBar st
+        height   = tHeight st
+        width    = tWidth st
         mainArea = renderMainArea ps height width
     bottomBar <- renderBottomBar ps
     return $ topBar `vertJoin` mainArea `vertJoin` bottomBar
@@ -35,23 +37,17 @@ renderState cfg st = do
 -- Primary event handling function
 -- Given a Config of the terminal, an AppState and the Event
 -- it will give the new AppState and Bool to tell if you have to quit
-updateState :: Config -> AppState -> Event -> IO AppState
-updateState cfg st (EvKey key mods) = updateStateKey cfg st key mods
-updateState _   st _                = return st
+updateState :: AppState -> Event -> IO AppState
+updateState st (EvKey key mods) = updateStateKey st key mods
+updateState st _                = return st
 
 
-updateStateKey :: Config -> AppState -> Key -> [Modifier] -> IO AppState
-updateStateKey cfg st (KChar ch) mods = updateStateCh cfg st ch mods
-updateStateKey _   st _          _    = return st
+updateStateKey :: AppState -> Key -> [Modifier] -> IO AppState
+updateStateKey st (KChar ch) mods = updateStateCh st ch mods
+updateStateKey st _          _    = return st
 
 
-updateStateCh :: Config -> AppState -> Char -> [Modifier] -> IO AppState
-updateStateCh cfg st 'j' [] = do
-    ht <- terminalHeight cfg
-    let nst = scrollDown st ht
-    return nst
-updateStateCh cfg st 'k' [] = do
-    ht <- terminalHeight cfg
-    let nst = scrollUp st ht
-    return nst
-updateStateCh _ st _ _ = return st
+updateStateCh :: AppState -> Char -> [Modifier] -> IO AppState
+updateStateCh st 'j' [] = return $ scrollDown st
+updateStateCh st 'k' [] = return $ scrollUp st
+updateStateCh st _   _  = return st

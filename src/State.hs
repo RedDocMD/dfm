@@ -134,14 +134,18 @@ data AppState = AppState
     { paneCnt    :: Int
     , currPane   :: Int
     , paneStates :: IM.IntMap PaneState
+    , tWidth     :: Int
+    , tHeight    :: Int
     }
 
--- Starting state of App
-defaultAppState :: IO AppState
-defaultAppState = defaultPaneState >>= \ps -> return AppState
+-- Starting state of App, pass in the width and height
+defaultAppState :: Int -> Int -> IO AppState
+defaultAppState width height = defaultPaneState >>= \ps -> return AppState
     { paneCnt    = 4
     , currPane   = 1
     , paneStates = IM.fromList [(1, ps)]
+    , tWidth     = width
+    , tHeight    = height
     }
 
 -- Current pane state
@@ -155,18 +159,20 @@ currPanePath :: AppState -> FilePath
 currPanePath = mainPath . currPaneState
 
 -- Scroll up the current pane
-scrollUp :: AppState -> Int -> AppState
-scrollUp st ht =
+scrollUp :: AppState -> AppState
+scrollUp st =
     let ps  = currPaneState st
+        ht  = tHeight st
         nps = paneScrollUp ps ht
         pss = paneStates st
         cp  = currPane st
     in  st { paneStates = IM.insert cp nps pss }
 
 -- Scroll down the current pane
-scrollDown :: AppState -> Int -> AppState
-scrollDown st ht =
+scrollDown :: AppState -> AppState
+scrollDown st =
     let ps  = currPaneState st
+        ht  = tHeight st
         nps = paneScrollDown ps ht
         pss = paneStates st
         cp  = currPane st
