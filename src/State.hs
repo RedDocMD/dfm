@@ -11,7 +11,7 @@ module State
     , AppState(..)
     , defaultAppState
     , currPaneState
-    , visibleFiles
+    , paneVisibleFiles
     , currPanePath
     , scrollUp
     , scrollDown
@@ -19,11 +19,14 @@ module State
     , recalculateOffsets
     , setCurrentPane
     , enterHighlightedFile
+    , gotoParent
     ) where
 
 
+-- import           Control.Logging               as Log
 import qualified Data.IntMap                   as IM
 import           Data.List.Extra
+-- import           Data.Text                      ( pack )
 import           FS
 import           System.Directory
 import           System.FilePath
@@ -39,8 +42,6 @@ data PaneState = PaneState
     , pOffset            :: Int
     }
     deriving Show
-
-data FileListMode = Normal | Hidden deriving (Show, Eq)
 
 
 -- Generate directories sorted by order
@@ -63,21 +64,21 @@ defaultPaneState = do
 
 -- Highlight the next file
 highlightNextFile :: PaneState -> PaneState
-highlightNextFile st = st
-    { highlightedFileIdx = nextFileIdx (highlightedFileIdx st)
-    }
-    where nextFileIdx idx = min (length $ visibleFiles st) (idx + 1)
+highlightNextFile st = st { highlightedFileIdx = nIdx }
+  where
+    nextFileIdx idx = min (length $ paneVisibleFiles st) (idx + 1)
+    nIdx = nextFileIdx (highlightedFileIdx st)
 
 -- Highlight the prev file
 highlightPrevFile :: PaneState -> PaneState
-highlightPrevFile st = st
-    { highlightedFileIdx = prevFileIdx (highlightedFileIdx st)
-    }
-    where prevFileIdx idx = max 0 (idx - 1)
+highlightPrevFile st = st { highlightedFileIdx = pIdx }
+  where
+    prevFileIdx idx = max 0 (idx - 1)
+    pIdx = prevFileIdx (highlightedFileIdx st)
 
 highlightedFileEntry :: PaneState -> FSEntry
 highlightedFileEntry st =
-    dirsBeforeFiles (visibleFiles st) !! highlightedFileIdx st
+    dirsBeforeFiles (paneVisibleFiles st) !! highlightedFileIdx st
 
 -- Get current highlighted file
 highlightedFile :: PaneState -> FilePath
@@ -109,13 +110,29 @@ paneEnterHighlightedFile st = do
         Directory -> newSt
         _         -> return st
 
+paneGotoParent :: PaneState -> IO PaneState
+paneGotoParent st = do
+    let currPath = mainPath st
+        newPath  = parentPath currPath
+        dName    = dirName currPath
+    if currPath == newPath
+        then return st
+        else do
+            contents <- genDirs newPath
+            let dIdx = findIndex
+                    ((==) dName . name)
+                    (dirsBeforeFiles $ visibleFiles contents (listMode st))
+            return
+                (st { mainPath           = newPath
+                    , pathFiles          = contents
+                    , highlightedFileIdx = fromJust dIdx
+                    , pOffset            = 0
+                    }
+                )
 
 -- List of visible files according to list mode
-visibleFiles :: PaneState -> [FSEntry]
-visibleFiles ps =
-    let selector =
-            if listMode ps == Normal then not . isHiddenFile else const True
-    in  filter selector (pathFiles ps)
+paneVisibleFiles :: PaneState -> [FSEntry]
+paneVisibleFiles ps = visibleFiles (pathFiles ps) (listMode ps)
 
 -- Returns a string of the form "x/y" where file x is highlighted
 -- with total of y files
@@ -123,7 +140,7 @@ highlightedIdxOrder :: PaneState -> String
 highlightedIdxOrder ps = show (cs + 1) ++ "/" ++ show tot
   where
     cs  = highlightedFileIdx ps
-    tot = length $ visibleFiles ps
+    tot = length $ paneVisibleFiles ps
 
 -- Scroll down one line when height of terminal is
 -- ht
@@ -131,7 +148,7 @@ paneScrollDown :: PaneState -> Int -> PaneState
 paneScrollDown st ht = st { highlightedFileIdx = nIdx, pOffset = nOffset }
   where
     aht     = pathListHeight ht
-    nIdx    = min (highlightedFileIdx st + 1) (length (visibleFiles st) - 1)
+    nIdx    = min (highlightedFileIdx st + 1) (length (paneVisibleFiles st) - 1)
     offset  = pOffset st
     nOffset = if nIdx - offset + 1 > aht then offset + 1 else offset
 
@@ -221,5 +238,14 @@ enterHighlightedFile st = do
         ps  = currPaneState st
         pss = paneStates st
     nps <- paneEnterHighlightedFile ps
+    let nPaneStates = IM.insert cp nps pss
+    return $ st { paneStates = nPaneStates }
+
+gotoParent :: AppState -> IO AppState
+gotoParent st = do
+    let cp  = currPane st
+        ps  = currPaneState st
+        pss = paneStates st
+    nps <- paneGotoParent ps
     let nPaneStates = IM.insert cp nps pss
     return $ st { paneStates = nPaneStates }

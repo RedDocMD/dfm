@@ -80,7 +80,7 @@ renderPathList st height =
         <-> renderSelectedPath sel
         <-> renderNormalPaths after
   where
-    paths        = dirsBeforeFiles $ visibleFiles st
+    paths        = dirsBeforeFiles $ paneVisibleFiles st
     off          = pOffset st
     visiblePaths = take (pathListHeight height) $ drop off paths
     sidx         = highlightedFileIdx st - off
