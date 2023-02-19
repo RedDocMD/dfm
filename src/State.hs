@@ -16,6 +16,8 @@ module State
     , currPanePath
     , scrollUp
     , scrollDown
+    , resizeTerminal
+    , recalculateOffsets
     ) where
 
 
@@ -128,6 +130,14 @@ paneScrollUp st _ = st { highlightedFileIdx = nIdx, pOffset = nOffset }
     offset  = pOffset st
     nOffset = if nIdx < offset then offset - 1 else offset
 
+paneRecalculateOffset :: PaneState -> Int -> PaneState
+paneRecalculateOffset st ht =
+    let aht     = pathListHeight ht
+        idx     = highlightedFileIdx st
+        off     = pOffset st
+        offDiff = max (idx - (off + aht) + 1) 0
+    in  st { pOffset = off + offDiff }
+
 
 
 data AppState = AppState
@@ -177,3 +187,12 @@ scrollDown st =
         pss = paneStates st
         cp  = currPane st
     in  st { paneStates = IM.insert cp nps pss }
+
+resizeTerminal :: AppState -> Int -> Int -> AppState
+resizeTerminal st width height = st { tWidth = width, tHeight = height }
+
+recalculateOffsets :: AppState -> AppState
+recalculateOffsets st =
+    let ht          = tHeight st
+        nPaneStates = IM.map (`paneRecalculateOffset` ht) (paneStates st)
+    in  st { paneStates = nPaneStates }

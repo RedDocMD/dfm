@@ -40,7 +40,7 @@ renderState st = do
 updateState :: AppState -> Event -> IO AppState
 updateState st (EvKey key mods) = updateStateKey st key mods
 updateState st (EvResize width height) =
-    return $ st { tWidth = width, tHeight = height }
+    return $ recalculateOffsets $ resizeTerminal st width height
 updateState st _ = return st
 
 
