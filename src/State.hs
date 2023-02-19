@@ -5,7 +5,6 @@ module State
     , highlightNextFile
     , highlightPrevFile
     , highlightedFile
-    , enterHighlightedFile
     , defaultPaneState
     , highlightedIdxOrder
     , pOffset
@@ -19,6 +18,7 @@ module State
     , resizeTerminal
     , recalculateOffsets
     , setCurrentPane
+    , enterHighlightedFile
     ) where
 
 
@@ -27,7 +27,7 @@ import           Data.List.Extra
 import           FS
 import           System.Directory
 import           System.FilePath
-import           Util                           ( pathListHeight )
+import           Util
 
 
 -- Contains the current state of the app
@@ -75,26 +75,39 @@ highlightPrevFile st = st
     }
     where prevFileIdx idx = max 0 (idx - 1)
 
+highlightedFileEntry :: PaneState -> FSEntry
+highlightedFileEntry st =
+    dirsBeforeFiles (visibleFiles st) !! highlightedFileIdx st
+
 -- Get current highlighted file
 highlightedFile :: PaneState -> FilePath
-highlightedFile st =
-    mainPath st </> name (visibleFiles st !! highlightedFileIdx st)
+highlightedFile st = mainPath st </> name (highlightedFileEntry st)
+
+-- Open file at path
+-- TODO: Actually open a file
+openFile :: FilePath -> IO ()
+openFile path = return ()
 
 -- If the highlighted file is a directory, then that becomes the
--- main path. Otherwise, nothing happens.
-enterHighlightedFile :: PaneState -> IO PaneState
-enterHighlightedFile st = do
-    let currPath = highlightedFile st
-        newSt    = do
+-- main path. If it is a file, open it.
+paneEnterHighlightedFile :: PaneState -> IO PaneState
+paneEnterHighlightedFile st = do
+    let currPath  = highlightedFile st
+        currEntry = highlightedFileEntry st
+        newSt     = do
             contents <- genDirs currPath
             return
                 (st { mainPath           = currPath
                     , pathFiles          = contents
                     , highlightedFileIdx = 0
+                    , pOffset            = 0
                     }
                 )
-    isDir <- doesDirectoryExist currPath
-    if isDir then return st else newSt
+        ft = fileType currEntry
+    case ft of
+        File      -> openFile currPath >> return st
+        Directory -> newSt
+        _         -> return st
 
 
 -- List of visible files according to list mode
@@ -201,3 +214,12 @@ recalculateOffsets st =
 setCurrentPane :: AppState -> Int -> AppState
 setCurrentPane st idx =
     st { currPane = if idx >= 1 && idx <= paneCnt st then idx else currPane st }
+
+enterHighlightedFile :: AppState -> IO AppState
+enterHighlightedFile st = do
+    let cp  = currPane st
+        ps  = currPaneState st
+        pss = paneStates st
+    nps <- paneEnterHighlightedFile ps
+    let nPaneStates = IM.insert cp nps pss
+    return $ st { paneStates = nPaneStates }

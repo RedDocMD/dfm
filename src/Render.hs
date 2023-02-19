@@ -8,7 +8,7 @@ import           FS
 import           Graphics.Vty
 import           State
 import           System.Posix
-import           Util                           ( pathListHeight )
+import           Util
 
 
 renderNormalPath :: FSEntry -> Image
@@ -87,13 +87,6 @@ renderPathList st height =
     before       = take sidx visiblePaths
     sel          = visiblePaths !! sidx
     after        = tail $ drop sidx visiblePaths
-
-dirsBeforeFiles :: [FSEntry] -> [FSEntry]
-dirsBeforeFiles fs =
-    let isDir f = fileType f == Directory
-        files = filter (not . isDir) fs
-        dirs  = filter isDir fs
-    in  dirs ++ files
 
 
 -- Renders the little pane seletor list at the top

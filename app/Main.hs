@@ -2,6 +2,7 @@ module Main
     ( main
     ) where
 
+import           Control.Logging               as Log
 import           Control.Monad.RWS
 import           Graphics.Vty
 import           Lib
@@ -10,7 +11,7 @@ import           State
 type App = RWST Vty () AppState IO
 
 main :: IO ()
-main = do
+main = Log.withFileLogging "/tmp/dfm.log" $ do
     cfg    <- standardIOConfig
     width  <- terminalWidth cfg
     height <- terminalHeight cfg
