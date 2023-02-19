@@ -39,7 +39,9 @@ renderState st = do
 -- it will give the new AppState and Bool to tell if you have to quit
 updateState :: AppState -> Event -> IO AppState
 updateState st (EvKey key mods) = updateStateKey st key mods
-updateState st _                = return st
+updateState st (EvResize width height) =
+    return $ st { tWidth = width, tHeight = height }
+updateState st _ = return st
 
 
 updateStateKey :: AppState -> Key -> [Modifier] -> IO AppState
