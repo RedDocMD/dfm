@@ -85,13 +85,16 @@ highlightPrevFile st = st { highlightedFileIdx = pIdx }
     prevFileIdx idx = max 0 (idx - 1)
     pIdx = prevFileIdx (highlightedFileIdx st)
 
-highlightedFileEntry :: PaneState -> FSEntry
+highlightedFileEntry :: PaneState -> Maybe FSEntry
 highlightedFileEntry st =
-    dirsBeforeFiles (paneVisibleFiles st) !! highlightedFileIdx st
+    let idx   = highlightedFileIdx st
+        files = dirsBeforeFiles (paneVisibleFiles st)
+    in  files !!? idx
 
 -- Get current highlighted file
-highlightedFile :: PaneState -> FilePath
-highlightedFile st = mainPath st </> name (highlightedFileEntry st)
+highlightedFile :: PaneState -> Maybe FilePath
+highlightedFile st =
+    fmap (\x -> mainPath st </> name x) (highlightedFileEntry st)
 
 -- Open file at path
 -- TODO: Actually open a file
@@ -104,20 +107,21 @@ paneEnterHighlightedFile :: PaneState -> IO PaneState
 paneEnterHighlightedFile st = do
     let currPath  = highlightedFile st
         currEntry = highlightedFileEntry st
-        newSt     = do
-            contents <- genDirs currPath
+        newSt path = do
+            contents <- genDirs path
             return
-                (st { mainPath           = currPath
+                (st { mainPath           = path
                     , pathFiles          = contents
                     , highlightedFileIdx = 0
                     , pOffset            = 0
                     }
                 )
-        ft = fileType currEntry
-    case ft of
-        File      -> openFile currPath >> return st
-        Directory -> newSt
-        _         -> return st
+    case (currPath, currEntry) of
+        (Just path, Just entry) -> case fileType entry of
+            File      -> openFile path >> return st
+            Directory -> newSt path
+            _         -> return st
+        _ -> return st
 
 paneGotoParent :: PaneState -> IO PaneState
 paneGotoParent st = do
@@ -156,8 +160,9 @@ highlightedIdxOrder ps = show (cs + 1) ++ "/" ++ show tot
 paneScrollDown :: PaneState -> Int -> PaneState
 paneScrollDown st ht = st { highlightedFileIdx = nIdx, pOffset = nOffset }
   where
-    aht     = pathListHeight ht
-    nIdx    = min (highlightedFileIdx st + 1) (length (paneVisibleFiles st) - 1)
+    aht  = pathListHeight ht
+    nIdx = max 0
+        $ min (highlightedFileIdx st + 1) (length (paneVisibleFiles st) - 1)
     offset  = pOffset st
     nOffset = if nIdx - offset + 1 > aht then offset + 1 else offset
 
@@ -184,9 +189,13 @@ paneToggleMarkHighlightedFile st =
         mp      = mainPath st
         marked  = markedFiles st
         mpFiles = HM.findWithDefault [] mp marked
-    in  if file `elem` mpFiles
-            then st { markedFiles = HM.insert mp (delete file mpFiles) marked }
-            else st { markedFiles = HM.insert mp (file : mpFiles) marked }
+    in  case file of
+            Just mFile -> if mFile `elem` mpFiles
+                then st
+                    { markedFiles = HM.insert mp (delete mFile mpFiles) marked
+                    }
+                else st { markedFiles = HM.insert mp (mFile : mpFiles) marked }
+            Nothing -> st
 
 paneMarkAllFiles :: PaneState -> PaneState
 paneMarkAllFiles st =

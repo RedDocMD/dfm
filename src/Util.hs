@@ -5,6 +5,8 @@ module Util
     , dirName
     , visibleFiles
     , FileListMode(..)
+    , (!!?)
+    , safeTail
     ) where
 
 import           Data.List.Extra                ( splitOn )
@@ -36,3 +38,10 @@ visibleFiles :: [FSEntry] -> FileListMode -> [FSEntry]
 visibleFiles paths mode =
     let selector = if mode == Normal then not . isHiddenFile else const True
     in  filter selector paths
+
+(!!?) :: [a] -> Int -> Maybe a
+lst !!? idx = if idx >= length lst then Nothing else Just $ lst !! idx
+
+safeTail :: [a] -> [a]
+safeTail []       = []
+safeTail (_ : xs) = xs

@@ -83,7 +83,7 @@ renderSelectedPath fse
 renderPathList :: PaneState -> Int -> Image
 renderPathList st height =
     renderNormalPaths before marked
-        <-> (selMarker Graphics.Vty.<|> renderSelectedPath sel)
+        <-> (selMarker Graphics.Vty.<|> selBody)
         <-> renderNormalPaths after marked
   where
     paths        = dirsBeforeFiles $ paneVisibleFiles st
@@ -91,12 +91,15 @@ renderPathList st height =
     visiblePaths = take (pathListHeight height) $ drop off paths
     sidx         = highlightedFileIdx st - off
     before       = take sidx visiblePaths
-    sel          = visiblePaths !! sidx
-    after        = tail $ drop sidx visiblePaths
+    sel          = visiblePaths !!? sidx
+    after        = safeTail $ drop sidx visiblePaths
     marked       = HM.findWithDefault [] (mainPath st) (markedFiles st)
-    selMarker    = if sel `elem` marked
-        then string (defAttr `withStyle` bold) "* "
-        else emptyImage
+    selMarker    = case sel of
+        Just mSel -> if mSel `elem` marked
+            then string (defAttr `withStyle` bold) "* "
+            else emptyImage
+        Nothing -> emptyImage
+    selBody = maybe emptyImage renderSelectedPath sel
 
 
 -- Renders the little pane seletor list at the top
@@ -158,16 +161,20 @@ renderBottomBar ps = do
         attr       = defAttr `withForeColor` blue
         spaceImg   = string attr " "
         timeFormat = "%d-%m-%Y %H:%M"
-    mtime <- modTime hf
-    perm  <- permissions hf
-    sz    <- size hf
-    let timeImg = string attr $ formatTime defaultTimeLocale timeFormat mtime
-        permImg = string attr perm
-        szImg   = string attr sz
-        cntImg  = string attr $ highlightedIdxOrder ps
-    return $ foldl horizJoin emptyImage $ intersperse
-        spaceImg
-        [cntImg, timeImg, permImg, szImg]
+    case hf of
+        Just mHf -> do
+            mtime <- modTime mHf
+            perm  <- permissions mHf
+            sz    <- size mHf
+            let timeImg =
+                    string attr $ formatTime defaultTimeLocale timeFormat mtime
+                permImg = string attr perm
+                szImg   = string attr sz
+                cntImg  = string attr $ highlightedIdxOrder ps
+            return $ foldl horizJoin emptyImage $ intersperse
+                spaceImg
+                [cntImg, timeImg, permImg, szImg]
+        Nothing -> return emptyImage
 
 modTime :: FilePath -> IO LocalTime
 modTime path = do
