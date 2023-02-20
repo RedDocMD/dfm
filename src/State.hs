@@ -23,6 +23,9 @@ module State
     , enterHighlightedFile
     , gotoParent
     , toggleMarkHighlightedFile
+    , markAllFiles
+    , unmarkAllFiles
+    , clearAllMarkedFiles
     ) where
 
 
@@ -93,7 +96,7 @@ highlightedFile st = mainPath st </> name (highlightedFileEntry st)
 -- Open file at path
 -- TODO: Actually open a file
 openFile :: FilePath -> IO ()
-openFile path = return ()
+openFile _ = return ()
 
 -- If the highlighted file is a directory, then that becomes the
 -- main path. If it is a file, open it.
@@ -185,6 +188,17 @@ paneToggleMarkHighlightedFile st =
             then st { markedFiles = HM.insert mp (delete file mpFiles) marked }
             else st { markedFiles = HM.insert mp (file : mpFiles) marked }
 
+paneMarkAllFiles :: PaneState -> PaneState
+paneMarkAllFiles st =
+    st { markedFiles = HM.insert (mainPath st) (pathFiles st) (markedFiles st) }
+
+paneUnmarkAllFiles :: PaneState -> PaneState
+paneUnmarkAllFiles st =
+    st { markedFiles = HM.insert (mainPath st) [] (markedFiles st) }
+
+paneClearAllMarkedFiles :: PaneState -> PaneState
+paneClearAllMarkedFiles st = st { markedFiles = HM.empty }
+
 
 
 data AppState = AppState
@@ -207,33 +221,35 @@ defaultAppState width height = defaultPaneState >>= \ps -> return AppState
 
 -- Current pane state
 currPaneState :: AppState -> PaneState
-currPaneState st = case IM.lookup (currPane st) (paneStates st) of
-    Just ps -> ps
-    Nothing -> error "invalid currPane"
+currPaneState st = fromJust $ IM.lookup (currPane st) (paneStates st)
 
 -- Current pane path
 currPanePath :: AppState -> FilePath
 currPanePath = mainPath . currPaneState
 
+modifyCurrPane :: (PaneState -> PaneState) -> AppState -> AppState
+modifyCurrPane fn st =
+    let ps  = currPaneState st
+        cp  = currPane st
+        pss = paneStates st
+        nps = fn ps
+    in  st { paneStates = IM.insert cp nps pss }
+
+modifyCurrPaneIO :: (PaneState -> IO PaneState) -> AppState -> IO AppState
+modifyCurrPaneIO fn st = do
+    let ps  = currPaneState st
+        cp  = currPane st
+        pss = paneStates st
+    nps <- fn ps
+    return $ st { paneStates = IM.insert cp nps pss }
+
 -- Scroll up the current pane
 scrollUp :: AppState -> AppState
-scrollUp st =
-    let ps  = currPaneState st
-        ht  = tHeight st
-        nps = paneScrollUp ps ht
-        pss = paneStates st
-        cp  = currPane st
-    in  st { paneStates = IM.insert cp nps pss }
+scrollUp st = let ht = tHeight st in modifyCurrPane (`paneScrollUp` ht) st
 
 -- Scroll down the current pane
 scrollDown :: AppState -> AppState
-scrollDown st =
-    let ps  = currPaneState st
-        ht  = tHeight st
-        nps = paneScrollDown ps ht
-        pss = paneStates st
-        cp  = currPane st
-    in  st { paneStates = IM.insert cp nps pss }
+scrollDown st = let ht = tHeight st in modifyCurrPane (`paneScrollDown` ht) st
 
 resizeTerminal :: AppState -> Int -> Int -> AppState
 resizeTerminal st width height = st { tWidth = width, tHeight = height }
@@ -249,28 +265,19 @@ setCurrentPane st idx =
     st { currPane = if idx >= 1 && idx <= paneCnt st then idx else currPane st }
 
 enterHighlightedFile :: AppState -> IO AppState
-enterHighlightedFile st = do
-    let cp  = currPane st
-        ps  = currPaneState st
-        pss = paneStates st
-    nps <- paneEnterHighlightedFile ps
-    let nPaneStates = IM.insert cp nps pss
-    return $ st { paneStates = nPaneStates }
+enterHighlightedFile = modifyCurrPaneIO paneEnterHighlightedFile
 
 gotoParent :: AppState -> IO AppState
-gotoParent st = do
-    let cp  = currPane st
-        ps  = currPaneState st
-        pss = paneStates st
-    nps <- paneGotoParent ps
-    let nPaneStates = IM.insert cp nps pss
-    return $ st { paneStates = nPaneStates }
+gotoParent = modifyCurrPaneIO paneGotoParent
 
 toggleMarkHighlightedFile :: AppState -> AppState
-toggleMarkHighlightedFile st =
-    let cp          = currPane st
-        ps          = currPaneState st
-        pss         = paneStates st
-        nps         = paneToggleMarkHighlightedFile ps
-        nPaneStates = IM.insert cp nps pss
-    in  st { paneStates = nPaneStates }
+toggleMarkHighlightedFile = modifyCurrPane paneToggleMarkHighlightedFile
+
+markAllFiles :: AppState -> AppState
+markAllFiles = modifyCurrPane paneMarkAllFiles
+
+unmarkAllFiles :: AppState -> AppState
+unmarkAllFiles = modifyCurrPane paneUnmarkAllFiles
+
+clearAllMarkedFiles :: AppState -> AppState
+clearAllMarkedFiles = modifyCurrPane paneClearAllMarkedFiles
