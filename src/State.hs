@@ -1,6 +1,8 @@
 module State
     ( PaneState(PaneState)
     , pathFiles
+    , markedFiles
+    , mainPath
     , highlightedFileIdx
     , highlightNextFile
     , highlightPrevFile
@@ -20,9 +22,11 @@ module State
     , setCurrentPane
     , enterHighlightedFile
     , gotoParent
+    , toggleMarkHighlightedFile
     ) where
 
 
+import qualified Data.HashMap.Lazy             as HM
 -- import           Control.Logging               as Log
 import qualified Data.IntMap                   as IM
 import           Data.List.Extra
@@ -40,6 +44,7 @@ data PaneState = PaneState
     , highlightedFileIdx :: Int
     , listMode           :: FileListMode
     , pOffset            :: Int
+    , markedFiles        :: HM.HashMap FilePath [FSEntry]
     }
     deriving Show
 
@@ -60,6 +65,7 @@ defaultPaneState = do
                      , highlightedFileIdx = 0
                      , listMode           = mode
                      , pOffset            = 0
+                     , markedFiles        = HM.empty
                      }
 
 -- Highlight the next file
@@ -169,6 +175,16 @@ paneRecalculateOffset st ht =
         offDiff = max (idx - (off + aht) + 1) 0
     in  st { pOffset = off + offDiff }
 
+paneToggleMarkHighlightedFile :: PaneState -> PaneState
+paneToggleMarkHighlightedFile st =
+    let file    = highlightedFileEntry st
+        mp      = mainPath st
+        marked  = markedFiles st
+        mpFiles = HM.findWithDefault [] mp marked
+    in  if file `elem` mpFiles
+            then st { markedFiles = HM.insert mp (delete file mpFiles) marked }
+            else st { markedFiles = HM.insert mp (file : mpFiles) marked }
+
 
 
 data AppState = AppState
@@ -249,3 +265,12 @@ gotoParent st = do
     nps <- paneGotoParent ps
     let nPaneStates = IM.insert cp nps pss
     return $ st { paneStates = nPaneStates }
+
+toggleMarkHighlightedFile :: AppState -> AppState
+toggleMarkHighlightedFile st =
+    let cp          = currPane st
+        ps          = currPaneState st
+        pss         = paneStates st
+        nps         = paneToggleMarkHighlightedFile ps
+        nPaneStates = IM.insert cp nps pss
+    in  st { paneStates = nPaneStates }

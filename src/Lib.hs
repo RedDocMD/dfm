@@ -54,6 +54,7 @@ updateStateCh st 'j' [] = return $ scrollDown st
 updateStateCh st 'k' [] = return $ scrollUp st
 updateStateCh st 'l' [] = enterHighlightedFile st
 updateStateCh st 'h' [] = gotoParent st
+updateStateCh st ' ' [] = return $ toggleMarkHighlightedFile st
 updateStateCh st '1' [] = return $ setCurrentPane st 1
 updateStateCh st '2' [] = return $ setCurrentPane st 2
 updateStateCh st '3' [] = return $ setCurrentPane st 3

@@ -16,7 +16,7 @@ data FSEntry = FSEntry
     , fileType  :: FileType
     , isSymLink :: Bool
     }
-    deriving Show
+    deriving (Show, Eq)
 
 -- Check if it is hidden folder (ie, starts with dot)
 isHiddenFile :: FSEntry -> Bool

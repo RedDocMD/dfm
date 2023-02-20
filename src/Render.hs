@@ -4,6 +4,7 @@ module Render
     , renderBottomBar
     ) where
 
+import qualified Data.HashMap.Lazy             as HM
 import           FS
 import           Graphics.Vty
 import           State
@@ -33,8 +34,13 @@ renderNormalPath fse
     renderSpecFile = string (defAttr `withForeColor` yellow)
 
 
-renderNormalPaths :: [FSEntry] -> Image
-renderNormalPaths = foldl vertJoin emptyImage . map renderNormalPath
+renderNormalPaths :: [FSEntry] -> [FSEntry] -> Image
+renderNormalPaths paths sel = foldl vertJoin emptyImage $ map renderFn paths
+  where
+    renderFn path = (selStr path) Graphics.Vty.<|> renderNormalPath path
+    selStr path = if path `elem` sel
+        then string (defAttr `withStyle` bold) "* "
+        else emptyImage
 
 
 renderSelectedPath :: FSEntry -> Image
@@ -76,9 +82,9 @@ renderSelectedPath fse
 -- Renders the list of paths
 renderPathList :: PaneState -> Int -> Image
 renderPathList st height =
-    renderNormalPaths before
-        <-> renderSelectedPath sel
-        <-> renderNormalPaths after
+    renderNormalPaths before marked
+        <-> (selMarker Graphics.Vty.<|> renderSelectedPath sel)
+        <-> renderNormalPaths after marked
   where
     paths        = dirsBeforeFiles $ paneVisibleFiles st
     off          = pOffset st
@@ -87,6 +93,10 @@ renderPathList st height =
     before       = take sidx visiblePaths
     sel          = visiblePaths !! sidx
     after        = tail $ drop sidx visiblePaths
+    marked       = HM.findWithDefault [] (mainPath st) (markedFiles st)
+    selMarker    = if sel `elem` marked
+        then string (defAttr `withStyle` bold) "* "
+        else emptyImage
 
 
 -- Renders the little pane seletor list at the top
