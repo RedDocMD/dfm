@@ -268,10 +268,17 @@ permissionsToString perm = concat
 -- Human readable size
 hrSize :: (Integral a, Show a) => a -> String
 hrSize sz
-    | sz < kib  = show sz ++ "B"
-    | sz < mib  = show ((fromIntegral sz :: Double) / fromIntegral kib) ++ "K"
-    | sz < gib  = show ((fromIntegral sz :: Double) / fromIntegral mib) ++ "M"
-    | otherwise = show ((fromIntegral sz :: Double) / fromIntegral gib) ++ "G"
+    | sz < kib
+    = show sz ++ "B"
+    | sz < mib
+    = show (round ((fromIntegral sz :: Double) / fromIntegral kib) :: Int)
+        ++ "K"
+    | sz < gib
+    = show (round ((fromIntegral sz :: Double) / fromIntegral mib) :: Int)
+        ++ "M"
+    | otherwise
+    = show (round ((fromIntegral sz :: Double) / fromIntegral gib) :: Int)
+        ++ "G"
   where
     two = 2
     kib = two ^ (10 :: Int)
