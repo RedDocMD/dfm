@@ -1,3 +1,5 @@
+{-#LANGUAGE NamedFieldPuns #-}
+
 module Render
     ( renderTopBar
     , renderMainArea
@@ -34,19 +36,31 @@ renderNormalPath fse
     renderSpecFile = string (defAttr `withForeColor` yellow)
 
 
-renderNormalPaths :: [FSEntry] -> [FSEntry] -> [FSEntry] -> Image
-renderNormalPaths paths sel yanked = foldl vertJoin emptyImage
-    $ map renderFn paths
+data Paths = Paths
+    { paths  :: [FSEntry]
+    , sel    :: [FSEntry]
+    , yanked :: [FSEntry]
+    , cut    :: [FSEntry]
+    }
+
+
+renderNormalPaths :: Paths -> Image
+renderNormalPaths Paths { paths, sel, yanked, cut } =
+    foldl vertJoin emptyImage $ map renderFn paths
   where
     renderFn path =
         (selStr path)
             Graphics.Vty.<|> (yankStr path)
+            Graphics.Vty.<|> (cutStr path)
             Graphics.Vty.<|> renderNormalPath path
     selStr path = if path `elem` sel
         then string (defAttr `withStyle` bold) "* "
         else emptyImage
     yankStr path = if path `elem` yanked
         then string (defAttr `withStyle` bold `withForeColor` yellow) "y "
+        else emptyImage
+    cutStr path = if path `elem` cut
+        then string (defAttr `withStyle` bold `withForeColor` red) "x "
         else emptyImage
 
 
@@ -89,9 +103,21 @@ renderSelectedPath fse
 -- Renders the list of paths
 renderPathList :: PaneState -> Int -> Image
 renderPathList st height =
-    renderNormalPaths before marked yanked
-        <-> (selMarker Graphics.Vty.<|> yankMarker Graphics.Vty.<|> selBody)
-        <-> renderNormalPaths after marked yanked
+    renderNormalPaths Paths { paths  = before
+                            , sel    = marked
+                            , yanked = yanked
+                            , cut    = cut
+                            }
+        <-> (                selMarker
+            Graphics.Vty.<|> yankMarker
+            Graphics.Vty.<|> cutMarker
+            Graphics.Vty.<|> selBody
+            )
+        <-> renderNormalPaths Paths { paths  = after
+                                    , sel    = marked
+                                    , yanked = yanked
+                                    , cut    = cut
+                                    }
   where
     paths        = dirsBeforeFiles $ paneVisibleFiles st
     off          = pOffset st
@@ -100,8 +126,10 @@ renderPathList st height =
     before       = take sidx visiblePaths
     sel          = visiblePaths !!? sidx
     after        = safeTail $ drop sidx visiblePaths
-    marked       = HM.findWithDefault [] (mainPath st) (markedFiles st)
-    yanked       = HM.findWithDefault [] (mainPath st) (yankedFiles st)
+    mp           = mainPath st
+    marked       = HM.findWithDefault [] mp (markedFiles st)
+    yanked       = HM.findWithDefault [] mp (yankedFiles st)
+    cut          = HM.findWithDefault [] mp (cutFiles st)
     selBody      = maybe emptyImage renderSelectedPath sel
     selMarker    = case sel of
         Nothing   -> emptyImage
@@ -112,6 +140,11 @@ renderPathList st height =
         Nothing   -> emptyImage
         Just mSel -> if mSel `elem` yanked
             then string (defAttr `withStyle` bold `withForeColor` yellow) "y "
+            else emptyImage
+    cutMarker = case sel of
+        Nothing   -> emptyImage
+        Just mSel -> if mSel `elem` cut
+            then string (defAttr `withStyle` bold `withForeColor` red) "x "
             else emptyImage
 
 -- Renders the little pane seletor list at the top
@@ -175,6 +208,7 @@ renderBottomBar ps = do
         timeFormat = "%d-%m-%Y %H:%M"
         markedCnt  = paneMarkedCount ps
         yankedCnt  = paneYankedCount ps
+        cutCnt     = paneCutCount ps
     case hf of
         Just mHf -> do
             mtime <- modTime mHf
@@ -189,9 +223,11 @@ renderBottomBar ps = do
                     $ if markedCnt == 0 then "" else "m:" ++ show markedCnt
                 yankedImg = string attr
                     $ if yankedCnt == 0 then "" else "y:" ++ show yankedCnt
+                cutImg = string attr
+                    $ if cutCnt == 0 then "" else "x:" ++ show cutCnt
             return $ foldl horizJoin emptyImage $ intersperse
                 spaceImg
-                [cntImg, timeImg, permImg, szImg, markedImg, yankedImg]
+                [cntImg, timeImg, permImg, szImg, markedImg, yankedImg, cutImg]
         Nothing -> return emptyImage
 
 modTime :: FilePath -> IO LocalTime

@@ -7,8 +7,10 @@ module Util
     , FileListMode(..)
     , (!!?)
     , safeTail
+    , mapLenSum
     ) where
 
+import qualified Data.HashMap.Lazy             as HM
 import           Data.List.Extra                ( splitOn )
 import           FS
 
@@ -45,3 +47,6 @@ lst !!? idx = if idx >= length lst then Nothing else Just $ lst !! idx
 safeTail :: [a] -> [a]
 safeTail []       = []
 safeTail (_ : xs) = xs
+
+mapLenSum :: HashMap a [b] -> Int
+mapLenSum = HM.foldl (\x y -> x + length y) 0
