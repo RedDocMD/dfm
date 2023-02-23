@@ -10,6 +10,7 @@ module State
     , defaultPaneState
     , highlightedIdxOrder
     , pOffset
+    , paneMarkedCount
     , AppState(..)
     , defaultAppState
     , currPaneState
@@ -207,6 +208,9 @@ paneUnmarkAllFiles st =
 
 paneClearAllMarkedFiles :: PaneState -> PaneState
 paneClearAllMarkedFiles st = st { markedFiles = HM.empty }
+
+paneMarkedCount :: PaneState -> Int
+paneMarkedCount = HM.foldl (\x y -> x + length y) 0 . markedFiles
 
 
 

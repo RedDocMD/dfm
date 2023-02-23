@@ -161,6 +161,7 @@ renderBottomBar ps = do
         attr       = defAttr `withForeColor` blue
         spaceImg   = string attr " "
         timeFormat = "%d-%m-%Y %H:%M"
+        markedCnt  = paneMarkedCount ps
     case hf of
         Just mHf -> do
             mtime <- modTime mHf
@@ -168,12 +169,14 @@ renderBottomBar ps = do
             sz    <- size mHf
             let timeImg =
                     string attr $ formatTime defaultTimeLocale timeFormat mtime
-                permImg = string attr perm
-                szImg   = string attr sz
-                cntImg  = string attr $ highlightedIdxOrder ps
+                permImg   = string attr perm
+                szImg     = string attr sz
+                cntImg    = string attr $ highlightedIdxOrder ps
+                markedImg = string attr
+                    $ if markedCnt == 0 then "" else "m:" ++ show markedCnt
             return $ foldl horizJoin emptyImage $ intersperse
                 spaceImg
-                [cntImg, timeImg, permImg, szImg]
+                [cntImg, timeImg, permImg, szImg, markedImg]
         Nothing -> return emptyImage
 
 modTime :: FilePath -> IO LocalTime
