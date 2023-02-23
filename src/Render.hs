@@ -34,12 +34,19 @@ renderNormalPath fse
     renderSpecFile = string (defAttr `withForeColor` yellow)
 
 
-renderNormalPaths :: [FSEntry] -> [FSEntry] -> Image
-renderNormalPaths paths sel = foldl vertJoin emptyImage $ map renderFn paths
+renderNormalPaths :: [FSEntry] -> [FSEntry] -> [FSEntry] -> Image
+renderNormalPaths paths sel yanked = foldl vertJoin emptyImage
+    $ map renderFn paths
   where
-    renderFn path = (selStr path) Graphics.Vty.<|> renderNormalPath path
+    renderFn path =
+        (selStr path)
+            Graphics.Vty.<|> (yankStr path)
+            Graphics.Vty.<|> renderNormalPath path
     selStr path = if path `elem` sel
         then string (defAttr `withStyle` bold) "* "
+        else emptyImage
+    yankStr path = if path `elem` yanked
+        then string (defAttr `withStyle` bold `withForeColor` yellow) "y "
         else emptyImage
 
 
@@ -82,9 +89,9 @@ renderSelectedPath fse
 -- Renders the list of paths
 renderPathList :: PaneState -> Int -> Image
 renderPathList st height =
-    renderNormalPaths before marked
-        <-> (selMarker Graphics.Vty.<|> selBody)
-        <-> renderNormalPaths after marked
+    renderNormalPaths before marked yanked
+        <-> (selMarker Graphics.Vty.<|> yankMarker Graphics.Vty.<|> selBody)
+        <-> renderNormalPaths after marked yanked
   where
     paths        = dirsBeforeFiles $ paneVisibleFiles st
     off          = pOffset st
@@ -94,13 +101,18 @@ renderPathList st height =
     sel          = visiblePaths !!? sidx
     after        = safeTail $ drop sidx visiblePaths
     marked       = HM.findWithDefault [] (mainPath st) (markedFiles st)
+    yanked       = HM.findWithDefault [] (mainPath st) (yankedFiles st)
+    selBody      = maybe emptyImage renderSelectedPath sel
     selMarker    = case sel of
+        Nothing   -> emptyImage
         Just mSel -> if mSel `elem` marked
             then string (defAttr `withStyle` bold) "* "
             else emptyImage
-        Nothing -> emptyImage
-    selBody = maybe emptyImage renderSelectedPath sel
-
+    yankMarker = case sel of
+        Nothing   -> emptyImage
+        Just mSel -> if mSel `elem` yanked
+            then string (defAttr `withStyle` bold `withForeColor` yellow) "y "
+            else emptyImage
 
 -- Renders the little pane seletor list at the top
 renderPaneList :: AppState -> Image
@@ -162,6 +174,7 @@ renderBottomBar ps = do
         spaceImg   = string attr " "
         timeFormat = "%d-%m-%Y %H:%M"
         markedCnt  = paneMarkedCount ps
+        yankedCnt  = paneYankedCount ps
     case hf of
         Just mHf -> do
             mtime <- modTime mHf
@@ -174,9 +187,11 @@ renderBottomBar ps = do
                 cntImg    = string attr $ highlightedIdxOrder ps
                 markedImg = string attr
                     $ if markedCnt == 0 then "" else "m:" ++ show markedCnt
+                yankedImg = string attr
+                    $ if yankedCnt == 0 then "" else "y:" ++ show yankedCnt
             return $ foldl horizJoin emptyImage $ intersperse
                 spaceImg
-                [cntImg, timeImg, permImg, szImg, markedImg]
+                [cntImg, timeImg, permImg, szImg, markedImg, yankedImg]
         Nothing -> return emptyImage
 
 modTime :: FilePath -> IO LocalTime

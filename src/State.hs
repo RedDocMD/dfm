@@ -2,6 +2,7 @@ module State
     ( PaneState(PaneState)
     , pathFiles
     , markedFiles
+    , yankedFiles
     , mainPath
     , highlightedFileIdx
     , highlightNextFile
@@ -11,6 +12,7 @@ module State
     , highlightedIdxOrder
     , pOffset
     , paneMarkedCount
+    , paneYankedCount
     , AppState(..)
     , defaultAppState
     , currPaneState
@@ -27,6 +29,7 @@ module State
     , markAllFiles
     , unmarkAllFiles
     , clearAllMarkedFiles
+    , yankMarkedFiles
     ) where
 
 
@@ -49,6 +52,7 @@ data PaneState = PaneState
     , listMode           :: FileListMode
     , pOffset            :: Int
     , markedFiles        :: HM.HashMap FilePath [FSEntry]
+    , yankedFiles        :: HM.HashMap FilePath [FSEntry]
     }
     deriving Show
 
@@ -70,6 +74,7 @@ defaultPaneState = do
                      , listMode           = mode
                      , pOffset            = 0
                      , markedFiles        = HM.empty
+                     , yankedFiles        = HM.empty
                      }
 
 -- Highlight the next file
@@ -189,11 +194,14 @@ paneToggleMarkHighlightedFile st =
     let file    = highlightedFileEntry st
         mp      = mainPath st
         marked  = markedFiles st
+        yanked  = yankedFiles st
         mpFiles = HM.findWithDefault [] mp marked
+        ypFiles = HM.findWithDefault [] mp yanked
     in  case file of
             Just mFile -> if mFile `elem` mpFiles
                 then st
                     { markedFiles = HM.insert mp (delete mFile mpFiles) marked
+                    , yankedFiles = HM.insert mp (delete mFile ypFiles) yanked
                     }
                 else st { markedFiles = HM.insert mp (mFile : mpFiles) marked }
             Nothing -> st
@@ -203,14 +211,26 @@ paneMarkAllFiles st =
     st { markedFiles = HM.insert (mainPath st) (pathFiles st) (markedFiles st) }
 
 paneUnmarkAllFiles :: PaneState -> PaneState
-paneUnmarkAllFiles st =
-    st { markedFiles = HM.insert (mainPath st) [] (markedFiles st) }
+paneUnmarkAllFiles st = st { markedFiles = HM.insert mp [] marked
+                           , yankedFiles = HM.insert mp [] yanked
+                           }
+  where
+    mp     = mainPath st
+    marked = markedFiles st
+    yanked = yankedFiles st
 
 paneClearAllMarkedFiles :: PaneState -> PaneState
-paneClearAllMarkedFiles st = st { markedFiles = HM.empty }
+paneClearAllMarkedFiles st =
+    st { markedFiles = HM.empty, yankedFiles = HM.empty }
+
+paneYankMarkedFiles :: PaneState -> PaneState
+paneYankMarkedFiles st = st { yankedFiles = markedFiles st }
 
 paneMarkedCount :: PaneState -> Int
 paneMarkedCount = HM.foldl (\x y -> x + length y) 0 . markedFiles
+
+paneYankedCount :: PaneState -> Int
+paneYankedCount = HM.foldl (\x y -> x + length y) 0 . yankedFiles
 
 
 
@@ -294,3 +314,6 @@ unmarkAllFiles = modifyCurrPane paneUnmarkAllFiles
 
 clearAllMarkedFiles :: AppState -> AppState
 clearAllMarkedFiles = modifyCurrPane paneClearAllMarkedFiles
+
+yankMarkedFiles :: AppState -> AppState
+yankMarkedFiles = modifyCurrPane paneYankMarkedFiles

@@ -58,6 +58,7 @@ updateStateCh st ' ' [] = return $ toggleMarkHighlightedFile st
 updateStateCh st 'm' [] = return $ markAllFiles st
 updateStateCh st 'c' [] = return $ clearAllMarkedFiles st
 updateStateCh st 'u' [] = return $ unmarkAllFiles st
+updateStateCh st 'y' [] = return $ yankMarkedFiles st
 updateStateCh st '1' [] = return $ setCurrentPane st 1
 updateStateCh st '2' [] = return $ setCurrentPane st 2
 updateStateCh st '3' [] = return $ setCurrentPane st 3
