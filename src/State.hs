@@ -33,6 +33,7 @@ module State
     , clearAllMarkedFiles
     , yankMarkedFiles
     , cutMarkedFiles
+    , pasteFiles
     ) where
 
 
@@ -250,6 +251,27 @@ paneYankedCount = mapLenSum . yankedFiles
 paneCutCount :: PaneState -> Int
 paneCutCount = mapLenSum . cutFiles
 
+panePasteFiles :: PaneState -> IO PaneState
+panePasteFiles st = do
+    let yanked   = yankedFiles st
+        cut      = cutFiles st
+        mp       = mainPath st
+        getPaths = concatMap (\(x, ys) -> [ (x, y) | y <- ys ]) . HM.toList
+    copyAllFiles (getPaths yanked) mp
+    copyAllFiles (getPaths cut)    mp
+    deleteAllFiles (getPaths cut)
+    contents <- genDirs mp
+    let newMarked = HM.mapWithKey (\rp -> filter (not . inYankedOrCut rp))
+                                  (markedFiles st)
+        inYanked rp fe = fe `notElem` HM.lookupDefault [] rp yanked
+        inCut rp fe = fe `notElem` HM.lookupDefault [] rp cut
+        inYankedOrCut rp fe = inYanked rp fe || inCut rp fe
+    return $ st { markedFiles = newMarked
+                , yankedFiles = HM.empty
+                , cutFiles    = HM.empty
+                , pathFiles   = contents
+                }
+
 
 
 data AppState = AppState
@@ -338,3 +360,6 @@ yankMarkedFiles = modifyCurrPane paneYankMarkedFiles
 
 cutMarkedFiles :: AppState -> AppState
 cutMarkedFiles = modifyCurrPane paneCutMarkedFiles
+
+pasteFiles :: AppState -> IO AppState
+pasteFiles = modifyCurrPaneIO panePasteFiles

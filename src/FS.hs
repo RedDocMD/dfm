@@ -3,9 +3,17 @@ module FS
     , isHiddenFile
     , listFSEntry
     , FileType(..)
+    , copyAllFiles
+    , deleteAllFiles
     ) where
 
-import           System.Directory               ( listDirectory )
+import           Control.Monad.Extra            ( mconcatMapM )
+import           System.Directory               ( copyFile
+                                                , createDirectory
+                                                , listDirectory
+                                                , removeDirectory
+                                                , removeFile
+                                                )
 import           System.FilePath
 import           System.Posix.Files
 
@@ -52,3 +60,28 @@ fileStatusToType fs | isBlockDevice fs     = BlockDevice
                     | isRegularFile fs     = File
                     | isDirectory fs       = Directory
                     | otherwise            = error "Unknown file type"
+
+copyAllFiles :: [(FilePath, FSEntry)] -> FilePath -> IO ()
+copyAllFiles xs drp = mconcatMapM (\x -> uncurry copySingleFile x drp) xs
+
+copySingleFile :: FilePath -> FSEntry -> FilePath -> IO ()
+copySingleFile srp fe drp = case fileType fe of
+    Directory -> createDirectory dp >> listFSEntry sp >>= mconcatMapM
+        (\x -> copySingleFile sp x dp)
+    _ -> copyFile sp dp
+  where
+    sp = joinPath [srp, name fe]
+    dp = joinPath [drp, name fe]
+
+
+deleteAllFiles :: [(FilePath, FSEntry)] -> IO ()
+deleteAllFiles = mconcatMapM (uncurry deleteSingleFile)
+
+deleteSingleFile :: FilePath -> FSEntry -> IO ()
+deleteSingleFile srp fe = case fileType fe of
+    Directory ->
+        listFSEntry sp
+            >>= mconcatMapM (deleteSingleFile sp)
+            >>  removeDirectory sp
+    _ -> removeFile sp
+    where sp = joinPath [srp, name fe]
