@@ -261,13 +261,7 @@ panePasteFiles st = do
     copyAllFiles (getPaths cut)    mp
     deleteAllFiles (getPaths cut)
     contents <- genDirs mp
-    let newMarked = HM.mapWithKey (\rp -> filter (not . inYankedOrCut rp))
-                                  (markedFiles st)
-        inYanked rp fe = fe `notElem` HM.lookupDefault [] rp yanked
-        inCut rp fe = fe `notElem` HM.lookupDefault [] rp cut
-        inYankedOrCut rp fe = inYanked rp fe || inCut rp fe
-    return $ st { markedFiles = newMarked
-                , yankedFiles = HM.empty
+    return $ st { yankedFiles = HM.empty
                 , cutFiles    = HM.empty
                 , pathFiles   = contents
                 }

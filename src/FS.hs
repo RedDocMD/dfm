@@ -8,8 +8,11 @@ module FS
     ) where
 
 import           Control.Monad.Extra            ( mconcatMapM )
-import           System.Directory               ( copyFile
+import           Data.Default
+import           System.Directory               ( copyFileWithMetadata
                                                 , createDirectory
+                                                , doesDirectoryExist
+                                                , doesFileExist
                                                 , listDirectory
                                                 , removeDirectory
                                                 , removeFile
@@ -61,18 +64,54 @@ fileStatusToType fs | isBlockDevice fs     = BlockDevice
                     | isDirectory fs       = Directory
                     | otherwise            = error "Unknown file type"
 
-copyAllFiles :: [(FilePath, FSEntry)] -> FilePath -> IO ()
+data CopyResult = CopyResult
+    { fileToFile :: [FilePath]
+    , dirToDir   :: [FilePath]
+    , fileToDir  :: [FilePath]
+    , dirToFile  :: [FilePath]
+    }
+
+instance Default CopyResult where
+    def = CopyResult { fileToFile = []
+                     , dirToDir   = []
+                     , fileToDir  = []
+                     , dirToFile  = []
+                     }
+
+instance Semigroup CopyResult where
+    l <> r = CopyResult { fileToFile = fileToFile l ++ fileToFile r
+                        , dirToDir   = dirToDir l ++ dirToDir r
+                        , fileToDir  = fileToDir l ++ fileToDir r
+                        , dirToFile  = dirToFile l ++ dirToFile r
+                        }
+
+instance Monoid CopyResult where
+    mempty = def
+
+copyAllFiles :: [(FilePath, FSEntry)] -> FilePath -> IO CopyResult
 copyAllFiles xs drp = mconcatMapM (\x -> uncurry copySingleFile x drp) xs
 
-copySingleFile :: FilePath -> FSEntry -> FilePath -> IO ()
-copySingleFile srp fe drp = case fileType fe of
-    Directory -> createDirectory dp >> listFSEntry sp >>= mconcatMapM
-        (\x -> copySingleFile sp x dp)
-    _ -> copyFile sp dp
+
+copySingleFile :: FilePath -> FSEntry -> FilePath -> IO CopyResult
+copySingleFile srp fe drp = do
+    destFileExists      <- doesFileExist sp
+    destDirectoryExists <- doesDirectoryExist sp
+    case fileType fe of
+        Directory -> case (destFileExists, destDirectoryExists) of
+            (True , True ) -> error "dest cannot be both file and directory"
+            (True , False) -> return $ def { dirToFile = [sp] }
+            (False, True ) -> return $ def { dirToDir = [sp] }
+            (False, False) ->
+                createDirectory dp >> listFSEntry sp >>= mconcatMapM
+                    (\x -> copySingleFile sp x dp)
+        _ -> case (destFileExists, destDirectoryExists) of
+            (True , True ) -> error "dest cannot be both file and directory"
+            (True , False) -> return $ def { fileToFile = [sp] }
+            (False, True ) -> return $ def { fileToDir = [sp] }
+            (False, False) -> copyFileWithMetadata sp dp <&> def
   where
     sp = joinPath [srp, name fe]
     dp = joinPath [drp, name fe]
-
 
 deleteAllFiles :: [(FilePath, FSEntry)] -> IO ()
 deleteAllFiles = mconcatMapM (uncurry deleteSingleFile)

@@ -26,6 +26,7 @@ dependencies:
 - unix
 - extra
 - logging
+- data-default
 
 ghc-options:
 - -Wall
