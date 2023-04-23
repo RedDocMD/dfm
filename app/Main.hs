@@ -2,8 +2,9 @@ module Main
     ( main
     ) where
 
-import           Control.Logging               as Log
+import           Control.Logging   as Log
 import           Control.Monad.RWS
+import           FS
 import           Graphics.Vty
 import           Lib
 import           State
@@ -16,15 +17,25 @@ main = Log.withFileLogging "/tmp/dfm.log" $ do
     width  <- terminalWidth cfg
     height <- terminalHeight cfg
     as     <- defaultAppState width height
+    conflictGuard cfg as
+
+conflictGuard :: Config -> AppState -> IO ()
+conflictGuard cfg as = do
     vty    <- mkVty cfg
-    _      <- execRWST (mainLoop False) vty as
+    (fas, _)      <- execRWST (mainLoop Continue) vty as
     shutdown vty
+    when (tMode fas == ConflictMode)
+        $ handleConflicts (conflicts fas) >> conflictGuard cfg fas { tMode = NormalMode }
 
+handleConflicts :: CopyConflicts -> IO ()
+handleConflicts cfg = do
+    putStrLn "Got some conflicts"
+    threadDelay 2000000
 
-mainLoop :: Bool -> App ()
-mainLoop shouldExit = do
+mainLoop :: Action -> App ()
+mainLoop action = do
     updateDisplay
-    unless shouldExit $ handleNextEvent >>= mainLoop
+    when (action == Continue) $ handleNextEvent >>= mainLoop
 
 updateDisplay :: App ()
 updateDisplay = do
@@ -34,16 +45,22 @@ updateDisplay = do
     let pic = picForImage img
     liftIO $ update vty pic
 
-handleNextEvent :: App Bool
+data Action = Continue | Quit | Conflict deriving Eq
+
+handleNextEvent :: App Action
 handleNextEvent = do
     vty <- ask
     ev  <- liftIO $ nextEvent vty
     handleEvent ev
   where
-    handleEvent :: Event -> App Bool
+    handleEvent :: Event -> App Action
     handleEvent ev = do
         as  <- get
         nas <- liftIO $ updateState as ev
         put nas
-        return $ ev == EvKey (KChar 'q') []
+        let action
+              | ev == EvKey (KChar 'q') [] = Quit
+              | tMode nas == ConflictMode   = Conflict
+              | otherwise                  = Continue
+        return action
 

@@ -5,6 +5,7 @@ module FS
     , FileType(..)
     , copyAllFiles
     , deleteAllFiles
+    , CopyConflicts(..)
     ) where
 
 import           Control.Monad.Extra (mconcatMapM)

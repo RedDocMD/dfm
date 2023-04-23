@@ -16,6 +16,7 @@ module State
     , paneYankedCount
     , paneCutCount
     , AppState(..)
+    , AppMode(..)
     , defaultAppState
     , currPaneState
     , paneVisibleFiles
@@ -37,9 +38,9 @@ module State
     ) where
 
 
-import qualified Data.HashMap.Lazy             as HM
+import qualified Data.HashMap.Lazy as HM
 -- import           Control.Logging               as Log
-import qualified Data.IntMap                   as IM
+import qualified Data.IntMap       as IM
 import           Data.List.Extra
 -- import           Data.Text                      ( pack )
 import           FS
@@ -251,22 +252,24 @@ paneYankedCount = mapLenSum . yankedFiles
 paneCutCount :: PaneState -> Int
 paneCutCount = mapLenSum . cutFiles
 
-panePasteFiles :: PaneState -> IO PaneState
+panePasteFiles :: PaneState -> IO (PaneState, CopyConflicts)
 panePasteFiles st = do
     let yanked   = yankedFiles st
         cut      = cutFiles st
         mp       = mainPath st
         getPaths = concatMap (\(x, ys) -> [ (x, y) | y <- ys ]) . HM.toList
-    copyAllFiles (getPaths yanked) mp
-    copyAllFiles (getPaths cut)    mp
+    yankConflicts <- copyAllFiles (getPaths yanked) mp
+    cutConflicts  <- copyAllFiles (getPaths cut)    mp
     deleteAllFiles (getPaths cut)
     contents <- genDirs mp
-    return $ st { yankedFiles = HM.empty
+    return (st { yankedFiles = HM.empty
                 , cutFiles    = HM.empty
                 , pathFiles   = contents
                 }
+            , yankConflicts <> cutConflicts)
 
 
+data AppMode = NormalMode | ConflictMode deriving Eq
 
 data AppState = AppState
     { paneCnt    :: Int
@@ -274,6 +277,8 @@ data AppState = AppState
     , paneStates :: IM.IntMap PaneState
     , tWidth     :: Int
     , tHeight    :: Int
+    , tMode      :: AppMode
+    , conflicts  :: CopyConflicts
     }
 
 -- Starting state of App, pass in the width and height
@@ -284,6 +289,8 @@ defaultAppState width height = defaultPaneState >>= \ps -> return AppState
     , paneStates = IM.fromList $ [ (i, ps) | i <- [1 .. 4] ]
     , tWidth     = width
     , tHeight    = height
+    , tMode       = NormalMode
+    , conflicts  = mempty
     }
 
 -- Current pane state
@@ -356,4 +363,12 @@ cutMarkedFiles :: AppState -> AppState
 cutMarkedFiles = modifyCurrPane paneCutMarkedFiles
 
 pasteFiles :: AppState -> IO AppState
-pasteFiles = modifyCurrPaneIO panePasteFiles
+pasteFiles st = do
+    let ps  = currPaneState st
+        cp  = currPane st
+        pss = paneStates st
+    (nps, mConflicts) <- panePasteFiles ps
+    return $ st { paneStates = IM.insert cp nps pss
+                , tMode       = ConflictMode
+                , conflicts  = mConflicts
+                }
