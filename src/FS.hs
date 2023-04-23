@@ -7,16 +7,12 @@ module FS
     , deleteAllFiles
     ) where
 
-import           Control.Monad.Extra            ( mconcatMapM )
+import           Control.Monad.Extra (mconcatMapM)
 import           Data.Default
-import           System.Directory               ( copyFileWithMetadata
-                                                , createDirectory
-                                                , doesDirectoryExist
-                                                , doesFileExist
-                                                , listDirectory
-                                                , removeDirectory
-                                                , removeFile
-                                                )
+import           System.Directory    (copyFileWithMetadata, createDirectory,
+                                      doesDirectoryExist, doesFileExist,
+                                      listDirectory, removeDirectory,
+                                      removeFile)
 import           System.FilePath
 import           System.Posix.Files
 
@@ -64,35 +60,35 @@ fileStatusToType fs | isBlockDevice fs     = BlockDevice
                     | isDirectory fs       = Directory
                     | otherwise            = error "Unknown file type"
 
-data CopyResult = CopyResult
-    { fileToFile :: [FilePath]
-    , dirToDir   :: [FilePath]
-    , fileToDir  :: [FilePath]
-    , dirToFile  :: [FilePath]
-    }
+data CopyConflicts = CopyResult
+       { fileToFile :: [FilePath]
+       , dirToDir   :: [FilePath]
+       , fileToDir  :: [FilePath]
+       , dirToFile  :: [FilePath]
+       }
 
-instance Default CopyResult where
+instance Default CopyConflicts where
     def = CopyResult { fileToFile = []
                      , dirToDir   = []
                      , fileToDir  = []
                      , dirToFile  = []
                      }
 
-instance Semigroup CopyResult where
+instance Semigroup CopyConflicts where
     l <> r = CopyResult { fileToFile = fileToFile l ++ fileToFile r
                         , dirToDir   = dirToDir l ++ dirToDir r
                         , fileToDir  = fileToDir l ++ fileToDir r
                         , dirToFile  = dirToFile l ++ dirToFile r
                         }
 
-instance Monoid CopyResult where
+instance Monoid CopyConflicts where
     mempty = def
 
-copyAllFiles :: [(FilePath, FSEntry)] -> FilePath -> IO CopyResult
+copyAllFiles :: [(FilePath, FSEntry)] -> FilePath -> IO CopyConflicts
 copyAllFiles xs drp = mconcatMapM (\x -> uncurry copySingleFile x drp) xs
 
 
-copySingleFile :: FilePath -> FSEntry -> FilePath -> IO CopyResult
+copySingleFile :: FilePath -> FSEntry -> FilePath -> IO CopyConflicts
 copySingleFile srp fe drp = do
     destFileExists      <- doesFileExist sp
     destDirectoryExists <- doesDirectoryExist sp
