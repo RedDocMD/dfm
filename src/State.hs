@@ -18,6 +18,8 @@ module State
     , AppState(..)
     , AppMode(..)
     , defaultAppState
+    , appStateHasConflict
+    , resetAfterConflict
     , currPaneState
     , paneVisibleFiles
     , currPanePath
@@ -292,6 +294,14 @@ defaultAppState width height = defaultPaneState >>= \ps -> return AppState
     , tMode       = NormalMode
     , conflicts  = mempty
     }
+
+resetAfterConflict :: AppState -> AppState
+resetAfterConflict st = st { tMode = NormalMode
+                           , conflicts = mempty
+                           }
+
+appStateHasConflict :: AppState -> Bool
+appStateHasConflict st = tMode st == ConflictMode
 
 -- Current pane state
 currPaneState :: AppState -> PaneState

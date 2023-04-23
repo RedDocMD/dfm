@@ -22,10 +22,10 @@ main = Log.withFileLogging "/tmp/dfm.log" $ do
 conflictGuard :: Config -> AppState -> IO ()
 conflictGuard cfg as = do
     vty    <- mkVty cfg
-    (fas, _)      <- execRWST (mainLoop Continue) vty as
+    (nas, _)      <- execRWST (mainLoop Continue) vty as
     shutdown vty
-    when (tMode fas == ConflictMode)
-        $ handleConflicts (conflicts fas) >> conflictGuard cfg fas { tMode = NormalMode }
+    when (appStateHasConflict nas)
+        $ handleConflicts (conflicts nas) >> conflictGuard cfg (resetAfterConflict nas)
 
 handleConflicts :: CopyConflicts -> IO ()
 handleConflicts cfg = do
@@ -60,7 +60,7 @@ handleNextEvent = do
         put nas
         let action
               | ev == EvKey (KChar 'q') [] = Quit
-              | tMode nas == ConflictMode   = Conflict
+              | appStateHasConflict nas    = Conflict
               | otherwise                  = Continue
         return action
 
