@@ -96,9 +96,12 @@ renderSelectedPath fse
     renderSymLink fp =
         string (defAttr `withForeColor` black `withBackColor` cyan) fp
             Graphics.Vty.<|> string defAttr "@"
-    renderFile = string (defAttr `withForeColor` black `withBackColor` white)
-    renderSpecFile =
-        string (defAttr `withForeColor` black `withBackColor` yellow)
+    renderFile fp = 
+        string (defAttr `withForeColor` black `withBackColor` white) fp 
+            Graphics.Vty.<|> string defAttr ""
+    renderSpecFile fp =
+        string (defAttr `withForeColor` black `withBackColor` yellow) fp
+            Graphics.Vty.<|> string defAttr ""
 
 -- Renders the list of paths
 renderPathList :: PaneState -> Int -> Image
