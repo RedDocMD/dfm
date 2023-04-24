@@ -46,12 +46,12 @@ data Paths = Paths
 
 renderNormalPaths :: Paths -> Image
 renderNormalPaths Paths { paths, sel, yanked, cut } =
-    foldl vertJoin emptyImage $ map renderFn paths
+    foldl' vertJoin emptyImage $ map renderFn paths
   where
     renderFn path =
-        (selStr path)
-            Graphics.Vty.<|> (yankStr path)
-            Graphics.Vty.<|> (cutStr path)
+        selStr path
+            Graphics.Vty.<|> yankStr path
+            Graphics.Vty.<|> cutStr path
             Graphics.Vty.<|> renderNormalPath path
     selStr path = if path `elem` sel
         then string (defAttr `withStyle` bold) "* "
@@ -152,7 +152,7 @@ renderPathList st height =
 
 -- Renders the little pane seletor list at the top
 renderPaneList :: AppState -> Image
-renderPaneList st = foldl horizJoin emptyImage $ intersperse spaceImg mainImgs
+renderPaneList st = foldl' horizJoin emptyImage $ intersperse spaceImg mainImgs
   where
     pc         = paneCnt st
     cp         = currPane st
@@ -189,7 +189,7 @@ renderTopBar st =
 
 
 verticalSpacer :: Int -> Int -> Image
-verticalSpacer width n = foldl vertJoin emptyImage
+verticalSpacer width n = foldl' vertJoin emptyImage
     $ replicate n (string defAttr $ replicate width ' ')
 
 -- FIXME: Handle horizontal wrapping of paths
@@ -228,7 +228,7 @@ renderBottomBar ps = do
                     $ if yankedCnt == 0 then "" else "y:" ++ show yankedCnt
                 cutImg = string attr
                     $ if cutCnt == 0 then "" else "x:" ++ show cutCnt
-            return $ foldl horizJoin emptyImage $ intersperse
+            return $ foldl' horizJoin emptyImage $ intersperse
                 spaceImg
                 [cntImg, timeImg, permImg, szImg, markedImg, yankedImg, cutImg]
         Nothing -> return emptyImage
