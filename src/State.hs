@@ -1,5 +1,6 @@
 module State
     ( PaneState(PaneState)
+    , SortOrder(..)
     , pathFiles
     , markedFiles
     , yankedFiles
@@ -37,6 +38,7 @@ module State
     , yankMarkedFiles
     , cutMarkedFiles
     , pasteFiles
+    , setSortOrder
     ) where
 
 
@@ -51,6 +53,20 @@ import           System.FilePath
 import           Util
 
 
+data SortOrder = Name | NameDescending | Time | TimeDescending deriving (Show, Eq)
+
+sortFnGen :: Ord a => (FSEntry -> a) -> (FSEntry -> FSEntry -> Ordering)
+sortFnGen fn l r = fn l `compare` fn r
+
+sortFnGenDesc :: Ord a => (FSEntry -> a) -> (FSEntry -> FSEntry -> Ordering)
+sortFnGenDesc fn l r = fn r `compare` fn l
+
+sortFn :: SortOrder -> (FSEntry -> FSEntry -> Ordering)
+sortFn Name           = sortFnGen (lower . name)
+sortFn NameDescending = sortFnGenDesc (lower . name)
+sortFn Time           = sortFnGen mTime
+sortFn TimeDescending = sortFnGenDesc mTime
+
 -- Contains the current state of the app
 data PaneState = PaneState
     { mainPath           :: FilePath
@@ -61,21 +77,22 @@ data PaneState = PaneState
     , markedFiles        :: HM.HashMap FilePath [FSEntry]
     , yankedFiles        :: HM.HashMap FilePath [FSEntry]
     , cutFiles           :: HM.HashMap FilePath [FSEntry]
+    , sortOrder          :: SortOrder
     }
     deriving Show
 
 
 -- Generate directories sorted by order
-genDirs :: FilePath -> IO [FSEntry]
-genDirs path = listFSEntry path >>= \x ->
-    return $ sortBy (\l r -> lower (name l) `compare` lower (name r)) x
+genDirs :: FilePath -> SortOrder -> IO [FSEntry]
+genDirs path so = listFSEntry path <&> sortBy (sortFn so)
 
 -- Starting state for pane
 defaultPaneState :: IO PaneState
 defaultPaneState = do
     let mode = Normal
+        so   = Name
     mp <- getHomeDirectory
-    pf <- genDirs mp
+    pf <- genDirs mp so
     return PaneState { mainPath           = mp
                      , pathFiles          = pf
                      , highlightedFileIdx = 0
@@ -84,6 +101,7 @@ defaultPaneState = do
                      , markedFiles        = HM.empty
                      , yankedFiles        = HM.empty
                      , cutFiles           = HM.empty
+                     , sortOrder          = so
                      }
 
 -- Highlight the next file
@@ -122,8 +140,9 @@ paneEnterHighlightedFile :: PaneState -> IO PaneState
 paneEnterHighlightedFile st = do
     let currPath  = highlightedFile st
         currEntry = highlightedFileEntry st
+        so        = sortOrder st
         newSt path = do
-            contents <- genDirs path
+            contents <- genDirs path so
             return
                 (st { mainPath           = path
                     , pathFiles          = contents
@@ -143,10 +162,11 @@ paneGotoParent st = do
     let currPath = mainPath st
         newPath  = parentPath currPath
         dName    = dirName currPath
+        so       = sortOrder st
     if currPath == newPath
         then return st
         else do
-            contents <- genDirs newPath
+            contents <- genDirs newPath so
             let dIdx = findIndex
                     ((==) dName . name)
                     (dirsBeforeFiles $ visibleFiles contents (listMode st))
@@ -260,15 +280,21 @@ panePasteFiles st = do
         cut      = cutFiles st
         mp       = mainPath st
         getPaths = concatMap (\(x, ys) -> [ (x, y) | y <- ys ]) . HM.toList
+        so       = sortOrder st
     yankConflicts <- copyAllFiles (getPaths yanked) mp
     cutConflicts  <- copyAllFiles (getPaths cut)    mp
     deleteAllFiles (getPaths cut)
-    contents <- genDirs mp
+    contents <- genDirs mp so
     return (st { yankedFiles = HM.empty
                 , cutFiles    = HM.empty
                 , pathFiles   = contents
                 }
             , yankConflicts <> cutConflicts)
+
+paneSetSorderOrder :: PaneState -> SortOrder -> IO PaneState
+paneSetSorderOrder st so = do
+    pf <- genDirs (mainPath st) so
+    return $ st { pathFiles = pf, sortOrder = so }
 
 
 data AppMode = NormalMode | ConflictMode deriving Eq
@@ -382,3 +408,6 @@ pasteFiles st = do
                 , tMode       = ConflictMode
                 , conflicts  = mConflicts
                 }
+
+setSortOrder :: SortOrder -> AppState -> IO AppState
+setSortOrder so = modifyCurrPaneIO (`paneSetSorderOrder` so)

@@ -15,6 +15,7 @@ import           System.Directory    (copyFileWithMetadata, createDirectory,
                                       listDirectory, removeDirectory,
                                       removeFile)
 import           System.FilePath
+import           System.Posix        (EpochTime)
 import           System.Posix.Files
 
 data FileType = File | Directory | BlockDevice | CharDevice | NamedPipe | Socket deriving (Show, Eq)
@@ -23,6 +24,7 @@ data FSEntry = FSEntry
     { name      :: FilePath
     , fileType  :: FileType
     , isSymLink :: Bool
+    , mTime     :: EpochTime
     }
     deriving (Show, Eq)
 
@@ -40,18 +42,23 @@ listFSEntry fp = do
     let subPaths = map (fp </>) subEntries
     subTypes <- mapM fsType subPaths
     symLinks <- mapM isPathSymLink subPaths
-    let entries = zipWith3
-            (\nm t sl -> FSEntry { name = nm, fileType = t, isSymLink = sl })
+    mTimes <- mapM fileMTime subPaths
+    let entries = zipWith4
+            (\nm t sl mt -> FSEntry { name = nm, fileType = t, isSymLink = sl, mTime = mt })
             subEntries
             subTypes
             symLinks
+            mTimes
     return entries
 
 fsType :: FilePath -> IO FileType
-fsType path = getFileStatus path >>= \x -> return $ fileStatusToType x
+fsType path = getFileStatus path <&> fileStatusToType
 
 isPathSymLink :: FilePath -> IO Bool
-isPathSymLink path = getFileStatus path >>= \x -> return $ isSymbolicLink x
+isPathSymLink path = getFileStatus path <&> isSymbolicLink
+
+fileMTime :: FilePath -> IO EpochTime
+fileMTime path = getFileStatus path <&> modificationTime
 
 fileStatusToType :: FileStatus -> FileType
 fileStatusToType fs | isBlockDevice fs     = BlockDevice
