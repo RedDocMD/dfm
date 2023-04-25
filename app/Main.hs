@@ -9,11 +9,13 @@ import           FS
 import           Graphics.Vty
 import           Lib
 import           State
+import System.Posix (installHandler, Handler (..), sigINT)
 
 type App = RWST Vty () AppState IO
 
 main :: IO ()
 main = Log.withFileLogging "/tmp/dfm.log" $ do
+  _ <- installHandler sigINT Ignore Nothing
   cfg <- standardIOConfig
   width <- terminalWidth cfg
   height <- terminalHeight cfg
