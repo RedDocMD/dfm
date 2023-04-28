@@ -9,7 +9,7 @@ import           FS
 import           Graphics.Vty
 import           Lib
 import           State
-import System.Posix (installHandler, Handler (..), sigINT)
+import           System.Posix      (Handler (..), installHandler, sigINT)
 
 type App = RWST Vty () AppState IO
 
@@ -27,8 +27,9 @@ conflictGuard cfg as = do
   vty <- mkVty cfg
   (nas, _) <- execRWST (mainLoop Continue) vty as
   shutdown vty
-  when (appStateHasConflict nas) $
-    printConflicts (conflicts nas) >> conflictGuard cfg (resetAfterConflict nas)
+  case tMode nas of
+    ConflictMode conf -> printConflicts conf >> conflictGuard cfg (resetAfterConflict nas)
+    NormalMode        -> return ()
 
 printConflicts :: CopyConflicts -> IO ()
 printConflicts cc = do
@@ -72,6 +73,6 @@ handleNextEvent = do
       put nas
       let action
             | ev == EvKey (KChar 'q') [] = Quit
-            | appStateHasConflict nas = Conflict
-            | otherwise = Continue
+            | isModeConflict (tMode nas) = Conflict
+            | otherwise                  = Continue
       return action

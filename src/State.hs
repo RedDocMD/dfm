@@ -18,8 +18,8 @@ module State
     , paneCutCount
     , AppState(..)
     , AppMode(..)
+    , isModeConflict
     , defaultAppState
-    , appStateHasConflict
     , resetAfterConflict
     , currPaneState
     , paneVisibleFiles
@@ -297,7 +297,11 @@ paneSetSorderOrder st so = do
     return $ st { pathFiles = pf, sortOrder = so }
 
 
-data AppMode = NormalMode | ConflictMode deriving Eq
+data AppMode = NormalMode | ConflictMode CopyConflicts
+
+isModeConflict :: AppMode -> Bool
+isModeConflict (ConflictMode _) = True
+isModeConflict _                = False
 
 data AppState = AppState
     { paneCnt    :: Int
@@ -306,7 +310,6 @@ data AppState = AppState
     , tWidth     :: Int
     , tHeight    :: Int
     , tMode      :: AppMode
-    , conflicts  :: CopyConflicts
     }
 
 -- Starting state of App, pass in the width and height
@@ -317,17 +320,11 @@ defaultAppState width height = defaultPaneState >>= \ps -> return AppState
     , paneStates = IM.fromList $ [ (i, ps) | i <- [1 .. 4] ]
     , tWidth     = width
     , tHeight    = height
-    , tMode       = NormalMode
-    , conflicts  = mempty
+    , tMode      = NormalMode
     }
 
 resetAfterConflict :: AppState -> AppState
-resetAfterConflict st = st { tMode = NormalMode
-                           , conflicts = mempty
-                           }
-
-appStateHasConflict :: AppState -> Bool
-appStateHasConflict st = tMode st == ConflictMode
+resetAfterConflict st = st { tMode = NormalMode }
 
 -- Current pane state
 currPaneState :: AppState -> PaneState
@@ -405,8 +402,7 @@ pasteFiles st = do
         pss = paneStates st
     (nps, mConflicts) <- panePasteFiles ps
     return $ st { paneStates = IM.insert cp nps pss
-                , tMode       = ConflictMode
-                , conflicts  = mConflicts
+                , tMode      = ConflictMode mConflicts
                 }
 
 setSortOrder :: SortOrder -> AppState -> IO AppState
