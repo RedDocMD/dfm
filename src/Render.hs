@@ -122,7 +122,7 @@ renderPathList st height =
                                     , cut    = cut
                                     }
   where
-    paths        = dirsBeforeFiles $ paneVisibleFiles st
+    paths        = paneVisibleFiles st
     off          = pOffset st
     visiblePaths = take (pathListHeight height) $ drop off paths
     sidx         = highlightedFileIdx st - off

@@ -45,9 +45,13 @@ updateState st _ = return st
 
 
 updateStateKey :: AppState -> Key -> [Modifier] -> IO AppState
-updateStateKey st (KChar ch) mods = updateStateCh st ch mods
-updateStateKey st _          _    = return st
+updateStateKey st (KChar  ch) mods = updateStateCh st ch mods
+updateStateKey st (KFun  num) mods = updateStateFKey st num mods
+updateStateKey st _           _    = return st
 
+updateStateFKey :: AppState -> Int -> [Modifier] -> IO AppState
+updateStateFKey st 2 [] = return $ enterRenameMode st
+updateStateFKey st _ _  = return st
 
 updateStateCh :: AppState -> Char -> [Modifier] -> IO AppState
 updateStateCh st 'j' [] = return $ scrollDown st

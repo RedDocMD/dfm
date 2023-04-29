@@ -2,7 +2,9 @@ module Util
     ( pathListHeight
     , dirsBeforeFiles
     , parentPath
+    , fileName
     , dirName
+    , switchName
     , visibleFiles
     , FileListMode(..)
     , (!!?)
@@ -10,8 +12,8 @@ module Util
     , mapLenSum
     ) where
 
-import qualified Data.HashMap.Lazy             as HM
-import           Data.List.Extra                ( splitOn )
+import qualified Data.HashMap.Lazy as HM
+import           Data.List.Extra   (splitOn)
 import           FS
 
 
@@ -30,8 +32,14 @@ parentPath :: FilePath -> FilePath
 parentPath "/"  = "/"
 parentPath path = "/" ++ intercalate "/" (init $ tail $ splitOn "/" path)
 
+fileName :: FilePath -> FilePath
+fileName = reverse . takeWhile (/= '/') . reverse
+
 dirName :: FilePath -> String
 dirName = last . splitOn "/"
+
+switchName :: FilePath -> String -> FilePath
+switchName old nName = parentPath old ++ "/" ++ nName
 
 data FileListMode = Normal | Hidden deriving (Show, Eq)
 

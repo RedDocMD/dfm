@@ -19,8 +19,10 @@ module State
     , AppState(..)
     , AppMode(..)
     , isModeConflict
+    , isModeRename
     , defaultAppState
     , resetAfterConflict
+    , doRename
     , currPaneState
     , paneVisibleFiles
     , currPanePath
@@ -39,6 +41,7 @@ module State
     , cutMarkedFiles
     , pasteFiles
     , setSortOrder
+    , enterRenameMode
     ) where
 
 
@@ -50,6 +53,7 @@ import           Data.List.Extra
 import           FS
 import           System.Directory
 import           System.FilePath
+import           System.Posix      (rename)
 import           Util
 
 
@@ -84,7 +88,7 @@ data PaneState = PaneState
 
 -- Generate directories sorted by order
 genDirs :: FilePath -> SortOrder -> IO [FSEntry]
-genDirs path so = listFSEntry path <&> sortBy (sortFn so)
+genDirs path so = listFSEntry path <&> dirsBeforeFiles . sortBy (sortFn so)
 
 -- Starting state for pane
 defaultPaneState :: IO PaneState
@@ -103,6 +107,18 @@ defaultPaneState = do
                      , cutFiles           = HM.empty
                      , sortOrder          = so
                      }
+
+refreshPaneState :: PaneState -> IO PaneState
+refreshPaneState st = do
+  pf' <- genDirs (mainPath st) (sortOrder st)
+  return $ st { pathFiles = pf' }
+
+highlightName :: PaneState -> FilePath -> PaneState
+highlightName st hName = let
+  idx = find (\(_, fe) -> hName == name fe) (zip [0..] (paneVisibleFiles st))
+  in case idx of
+       Just (hIdx, _) -> st { highlightedFileIdx = hIdx }
+       Nothing        -> st
 
 -- Highlight the next file
 highlightNextFile :: PaneState -> PaneState
@@ -297,11 +313,15 @@ paneSetSorderOrder st so = do
     return $ st { pathFiles = pf, sortOrder = so }
 
 
-data AppMode = NormalMode | ConflictMode CopyConflicts
+data AppMode = NormalMode | ConflictMode CopyConflicts | RenameMode FilePath
 
 isModeConflict :: AppMode -> Bool
 isModeConflict (ConflictMode _) = True
 isModeConflict _                = False
+
+isModeRename :: AppMode -> Bool
+isModeRename (RenameMode _) = True
+isModeRename _              = False
 
 data AppState = AppState
     { paneCnt    :: Int
@@ -325,6 +345,15 @@ defaultAppState width height = defaultPaneState >>= \ps -> return AppState
 
 resetAfterConflict :: AppState -> AppState
 resetAfterConflict st = st { tMode = NormalMode }
+
+doRename :: AppState -> FilePath -> FilePath -> IO AppState
+doRename st old new = do
+  rename old new
+  let st'     = clearAllMarkedFiles st
+      st''    = st' { tMode = NormalMode }
+      newName = fileName new
+  modifyCurrPaneIO refreshPaneState st''
+    <&> modifyCurrPane (`highlightName` newName)
 
 -- Current pane state
 currPaneState :: AppState -> PaneState
@@ -407,3 +436,9 @@ pasteFiles st = do
 
 setSortOrder :: SortOrder -> AppState -> IO AppState
 setSortOrder so = modifyCurrPaneIO (`paneSetSorderOrder` so)
+
+enterRenameMode :: AppState -> AppState
+enterRenameMode st = case hp of
+  Just path -> st { tMode =  RenameMode path }
+  Nothing   -> st
+  where hp = highlightedFile $ currPaneState st

@@ -10,6 +10,7 @@ import           Graphics.Vty
 import           Lib
 import           State
 import           System.Posix      (Handler (..), installHandler, sigINT)
+import           Util
 
 type App = RWST Vty () AppState IO
 
@@ -25,11 +26,16 @@ main = Log.withFileLogging "/tmp/dfm.log" $ do
 conflictGuard :: Config -> AppState -> IO ()
 conflictGuard cfg as = do
   vty <- mkVty cfg
-  (nas, _) <- execRWST (mainLoop Continue) vty as
+  (nas, _) <- execRWST (mainLoop False) vty as
   shutdown vty
   case tMode nas of
-    ConflictMode conf -> printConflicts conf >> conflictGuard cfg (resetAfterConflict nas)
-    NormalMode        -> return ()
+    ConflictMode conf  -> printConflicts conf >> conflictGuard cfg (resetAfterConflict nas)
+    RenameMode oldPath -> do
+      newPath <- getNewName oldPath
+      if newPath == oldPath
+        then conflictGuard cfg nas
+        else doRename nas oldPath newPath >>= conflictGuard cfg
+    NormalMode         -> return ()
 
 printConflicts :: CopyConflicts -> IO ()
 printConflicts cc = do
@@ -45,10 +51,17 @@ printConflicts cc = do
   _ <- getChar
   return ()
 
-mainLoop :: Action -> App ()
-mainLoop action = do
+getNewName :: FilePath -> IO FilePath
+getNewName from = do
+  putStrLn $ "Renaming " ++ from ++ " to:"
+  endName <- getLine
+  let newName = if null endName then from else switchName from endName
+  return newName
+
+mainLoop :: Bool -> App ()
+mainLoop shouldExit = do
   updateDisplay
-  when (action == Continue) $ handleNextEvent >>= mainLoop
+  unless shouldExit $ handleNextEvent >>= mainLoop
 
 updateDisplay :: App ()
 updateDisplay = do
@@ -58,21 +71,20 @@ updateDisplay = do
   let pic = picForImage img
   liftIO $ update vty pic
 
-data Action = Continue | Quit | Conflict deriving (Eq)
-
-handleNextEvent :: App Action
+handleNextEvent :: App Bool
 handleNextEvent = do
   vty <- ask
   ev <- liftIO $ nextEvent vty
   handleEvent ev
   where
-    handleEvent :: Event -> App Action
+    handleEvent :: Event -> App Bool
     handleEvent ev = do
       as <- get
       nas <- liftIO $ updateState as ev
       put nas
-      let action
-            | ev == EvKey (KChar 'q') [] = Quit
-            | isModeConflict (tMode nas) = Conflict
-            | otherwise                  = Continue
-      return action
+      let quit
+            | ev == EvKey (KChar 'q') [] = True
+            | isModeConflict (tMode nas) = True
+            | isModeRename   (tMode nas) = True
+            | otherwise                  = False
+      return quit
