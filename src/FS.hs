@@ -92,14 +92,18 @@ instance Semigroup CopyConflicts where
 instance Monoid CopyConflicts where
     mempty = def
 
+
+hasNoConflicts :: CopyConflicts -> Bool
+hasNoConflicts cc = null (fileToFile cc) && null (dirToDir cc) && null (fileToDir cc) && null (dirToFile cc)
+
 copyAllFiles :: [(FilePath, FSEntry)] -> FilePath -> IO CopyConflicts
 copyAllFiles xs drp = mconcatMapM (\x -> uncurry copySingleFile x drp) xs
 
 
 copySingleFile :: FilePath -> FSEntry -> FilePath -> IO CopyConflicts
 copySingleFile srp fe drp = do
-    destFileExists      <- doesFileExist sp
-    destDirectoryExists <- doesDirectoryExist sp
+    destFileExists      <- doesFileExist dp
+    destDirectoryExists <- doesDirectoryExist dp
     case fileType fe of
         Directory -> case (destFileExists, destDirectoryExists) of
             (True , True ) -> error "dest cannot be both file and directory"

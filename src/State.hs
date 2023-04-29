@@ -430,8 +430,9 @@ pasteFiles st = do
         cp  = currPane st
         pss = paneStates st
     (nps, mConflicts) <- panePasteFiles ps
+    let mode = if hasNoConflicts mConflicts then NormalMode else ConflictMode mConflicts
     return $ st { paneStates = IM.insert cp nps pss
-                , tMode      = ConflictMode mConflicts
+                , tMode      = mode
                 }
 
 setSortOrder :: SortOrder -> AppState -> IO AppState
