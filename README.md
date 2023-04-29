@@ -9,4 +9,4 @@ A minimalistic TUI file manager inspired after NNN.
 - [x] Make directory
 - [ ] Delete files
 - [ ] Zip/Gzip files
-- [ ] Open file on enter
+- [x] Open file on enter

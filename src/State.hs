@@ -57,6 +57,7 @@ import           FS
 import           System.Directory  (createDirectory, getHomeDirectory)
 import           System.FilePath
 import           System.Posix      (rename)
+import           System.Process    (callProcess)
 import           Util
 
 
@@ -149,9 +150,8 @@ highlightedFile st =
     fmap (\x -> mainPath st </> name x) (highlightedFileEntry st)
 
 -- Open file at path
--- TODO: Actually open a file
 openFile :: FilePath -> IO ()
-openFile _ = return ()
+openFile fp = callProcess "handlr" ["open", fp]
 
 -- If the highlighted file is a directory, then that becomes the
 -- main path. If it is a file, open it.

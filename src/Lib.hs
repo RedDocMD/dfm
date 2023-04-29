@@ -47,6 +47,7 @@ updateState st _ = return st
 updateStateKey :: AppState -> Key -> [Modifier] -> IO AppState
 updateStateKey st (KChar  ch) mods = updateStateCh st ch mods
 updateStateKey st (KFun  num) mods = updateStateFKey st num mods
+updateStateKey st KEnter      []   = enterHighlightedFile st
 updateStateKey st _           _    = return st
 
 updateStateFKey :: AppState -> Int -> [Modifier] -> IO AppState

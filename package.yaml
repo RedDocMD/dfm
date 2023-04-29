@@ -19,6 +19,7 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/RedDocMD/dfm#readme>
 
 dependencies:
+- process
 - vty
 - filepath
 - directory

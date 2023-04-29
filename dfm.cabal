@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 
@@ -40,6 +40,7 @@ library
     , extra
     , filepath
     , logging
+    , process
     , rerebase
     , unix
     , vty
@@ -59,6 +60,7 @@ executable dfm-exe
     , extra
     , filepath
     , logging
+    , process
     , rerebase
     , unix
     , vty
@@ -79,6 +81,7 @@ test-suite dfm-test
     , extra
     , filepath
     , logging
+    , process
     , rerebase
     , unix
     , vty
