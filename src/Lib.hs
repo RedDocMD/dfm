@@ -51,6 +51,7 @@ updateStateKey st _           _    = return st
 
 updateStateFKey :: AppState -> Int -> [Modifier] -> IO AppState
 updateStateFKey st 2 [] = return $ enterRenameMode st
+updateStateFKey st 3 [] = return $ enterMkdirMode st
 updateStateFKey st _ _  = return st
 
 updateStateCh :: AppState -> Char -> [Modifier] -> IO AppState

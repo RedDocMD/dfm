@@ -35,6 +35,12 @@ conflictGuard cfg as = do
       if newPath == oldPath
         then conflictGuard cfg nas
         else doRename nas oldPath newPath >>= conflictGuard cfg
+    MkdirMode -> do
+      newDirName <- getNewDirectoryName
+      as' <- mkdir newDirName as
+      putStrLn "\nWaiting for any key ..."
+      _ <- getChar
+      conflictGuard cfg as'
     NormalMode         -> return ()
 
 printConflicts :: CopyConflicts -> IO ()
@@ -57,6 +63,11 @@ getNewName from = do
   endName <- getLine
   let newName = if null endName then from else switchName from endName
   return newName
+
+getNewDirectoryName :: IO FilePath
+getNewDirectoryName = do
+  putStrLn "Enter new directory name:"
+  getLine
 
 mainLoop :: Bool -> App ()
 mainLoop shouldExit = do
@@ -86,5 +97,6 @@ handleNextEvent = do
             | ev == EvKey (KChar 'q') [] = True
             | isModeConflict (tMode nas) = True
             | isModeRename   (tMode nas) = True
+            | isModeMkdir    (tMode nas) = True
             | otherwise                  = False
       return quit

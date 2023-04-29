@@ -20,6 +20,7 @@ module State
     , AppMode(..)
     , isModeConflict
     , isModeRename
+    , isModeMkdir
     , defaultAppState
     , resetAfterConflict
     , doRename
@@ -42,6 +43,8 @@ module State
     , pasteFiles
     , setSortOrder
     , enterRenameMode
+    , enterMkdirMode
+    , mkdir
     ) where
 
 
@@ -51,7 +54,7 @@ import qualified Data.IntMap       as IM
 import           Data.List.Extra
 -- import           Data.Text                      ( pack )
 import           FS
-import           System.Directory
+import           System.Directory  (createDirectory, getHomeDirectory)
 import           System.FilePath
 import           System.Posix      (rename)
 import           Util
@@ -307,13 +310,27 @@ panePasteFiles st = do
                 }
             , yankConflicts <> cutConflicts)
 
-paneSetSorderOrder :: PaneState -> SortOrder -> IO PaneState
-paneSetSorderOrder st so = do
+paneSetSorderOrder :: SortOrder -> PaneState -> IO PaneState
+paneSetSorderOrder so st = do
     pf <- genDirs (mainPath st) so
     return $ st { pathFiles = pf, sortOrder = so }
 
+paneMkdir :: FilePath -> PaneState -> IO PaneState
+paneMkdir newDirName st = do
+  let mp      = mainPath st
+      dirPath = joinPath [mp, newDirName]
+      exHandler ex = do
+        let err = show (ex :: IOException)
+        putStrLn $ "\n" ++ "Failed to create directory: " ++ err
+  catch (createDirectory dirPath) exHandler
+  pf <- genDirs mp (sortOrder st)
+  return $ st { pathFiles = pf }
 
-data AppMode = NormalMode | ConflictMode CopyConflicts | RenameMode FilePath
+
+data AppMode = NormalMode
+             | ConflictMode CopyConflicts
+             | RenameMode FilePath
+             | MkdirMode
 
 isModeConflict :: AppMode -> Bool
 isModeConflict (ConflictMode _) = True
@@ -322,6 +339,10 @@ isModeConflict _                = False
 isModeRename :: AppMode -> Bool
 isModeRename (RenameMode _) = True
 isModeRename _              = False
+
+isModeMkdir :: AppMode -> Bool
+isModeMkdir MkdirMode = True
+isModeMkdir _         = False
 
 data AppState = AppState
     { paneCnt    :: Int
@@ -436,10 +457,16 @@ pasteFiles st = do
                 }
 
 setSortOrder :: SortOrder -> AppState -> IO AppState
-setSortOrder so = modifyCurrPaneIO (`paneSetSorderOrder` so)
+setSortOrder so = modifyCurrPaneIO (paneSetSorderOrder so)
 
 enterRenameMode :: AppState -> AppState
 enterRenameMode st = case hp of
   Just path -> st { tMode =  RenameMode path }
   Nothing   -> st
   where hp = highlightedFile $ currPaneState st
+
+enterMkdirMode :: AppState -> AppState
+enterMkdirMode st = st { tMode = MkdirMode }
+
+mkdir :: FilePath -> AppState -> IO AppState
+mkdir fp st = modifyCurrPaneIO (paneMkdir fp) st >>= \nst -> return $ nst { tMode = NormalMode }

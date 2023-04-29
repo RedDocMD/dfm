@@ -6,7 +6,7 @@ A minimalistic TUI file manager inspired after NNN.
 
 - [x] Sort files in view
 - [x] Rename file
-- [ ] Make directory
+- [x] Make directory
 - [ ] Delete files
 - [ ] Zip/Gzip files
 - [ ] Open file on enter
