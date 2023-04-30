@@ -8,6 +8,7 @@ module Lib
 import           Graphics.Vty
 import           Render
 import           State
+import           Util
 
 terminalSize :: Config -> IO DisplayRegion
 terminalSize cfg = outputForConfig cfg >>= displayBounds
@@ -71,6 +72,7 @@ updateStateCh st 'a' [] = setSortOrder Name st
 updateStateCh st 'A' [] = setSortOrder NameDescending st
 updateStateCh st 't' [] = setSortOrder Time st
 updateStateCh st 'T' [] = setSortOrder TimeDescending st
+updateStateCh st 'r' [] = getUserName >>= \un -> gotoDir ("/run/media/" ++ un) st
 updateStateCh st '1' [] = return $ setCurrentPane st 1
 updateStateCh st '2' [] = return $ setCurrentPane st 2
 updateStateCh st '3' [] = return $ setCurrentPane st 3

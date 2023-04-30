@@ -45,6 +45,7 @@ module State
     , enterRenameMode
     , enterMkdirMode
     , mkdir
+    , gotoDir
     ) where
 
 
@@ -111,6 +112,15 @@ defaultPaneState = do
                      , cutFiles           = HM.empty
                      , sortOrder          = so
                      }
+
+paneGotoDir :: FilePath -> PaneState -> IO PaneState
+paneGotoDir fp st = do
+    pf <- genDirs fp (sortOrder st)
+    return $ st { mainPath           = fp
+                , pathFiles          = pf
+                , highlightedFileIdx = 0
+                , pOffset            = 0
+                }
 
 refreshPaneState :: PaneState -> IO PaneState
 refreshPaneState st = do
@@ -470,3 +480,6 @@ enterMkdirMode st = st { tMode = MkdirMode }
 
 mkdir :: FilePath -> AppState -> IO AppState
 mkdir fp st = modifyCurrPaneIO (paneMkdir fp) st >>= \nst -> return $ nst { tMode = NormalMode }
+
+gotoDir :: FilePath -> AppState -> IO AppState
+gotoDir fp = modifyCurrPaneIO (paneGotoDir fp)

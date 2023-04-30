@@ -10,11 +10,14 @@ module Util
     , (!!?)
     , safeTail
     , mapLenSum
+    , getUserName
     ) where
 
 import qualified Data.HashMap.Lazy as HM
 import           Data.List.Extra   (splitOn)
 import           FS
+import           System.Posix      (UserEntry (userName), getRealUserID,
+                                    getUserEntryForID)
 
 
 -- No of lines for path list given terminal height
@@ -58,3 +61,9 @@ safeTail (_ : xs) = xs
 
 mapLenSum :: HashMap a [b] -> Int
 mapLenSum = HM.foldl (\x y -> x + length y) 0
+
+getUserName :: IO String
+getUserName = do
+    uid <- getRealUserID
+    ue  <- getUserEntryForID uid
+    return $ userName ue
