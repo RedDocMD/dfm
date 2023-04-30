@@ -310,8 +310,8 @@ panePasteFiles st = do
                 }
             , yankConflicts <> cutConflicts)
 
-paneSetSorderOrder :: SortOrder -> PaneState -> IO PaneState
-paneSetSorderOrder so st = do
+paneSetSortOrder :: SortOrder -> PaneState -> IO PaneState
+paneSetSortOrder so st = do
     pf <- genDirs (mainPath st) so
     return $ st { pathFiles = pf, sortOrder = so }
 
@@ -457,7 +457,7 @@ pasteFiles st = do
                 }
 
 setSortOrder :: SortOrder -> AppState -> IO AppState
-setSortOrder so = modifyCurrPaneIO (paneSetSorderOrder so)
+setSortOrder so = modifyCurrPaneIO (paneSetSortOrder so)
 
 enterRenameMode :: AppState -> AppState
 enterRenameMode st = case hp of

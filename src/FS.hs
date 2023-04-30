@@ -67,6 +67,7 @@ fileStatusToType fs | isBlockDevice fs     = BlockDevice
                     | isNamedPipe fs       = NamedPipe
                     | isRegularFile fs     = File
                     | isDirectory fs       = Directory
+                    | isSocket fs          = Socket
                     | otherwise            = error "Unknown file type"
 
 data CopyConflicts = CopyResult
