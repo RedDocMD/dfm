@@ -37,7 +37,7 @@ conflictGuard cfg as = do
         else doRename nas oldPath newPath >>= conflictGuard cfg
     MkdirMode -> do
       newDirName <- getNewDirectoryName
-      as' <- mkdir newDirName as
+      as' <- mkdir newDirName nas
       putStrLn "\nWaiting for any key ..."
       _ <- getChar
       conflictGuard cfg as'
