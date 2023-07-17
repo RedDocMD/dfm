@@ -77,4 +77,6 @@ updateStateCh st '1' [] = return $ setCurrentPane st 1
 updateStateCh st '2' [] = return $ setCurrentPane st 2
 updateStateCh st '3' [] = return $ setCurrentPane st 3
 updateStateCh st '4' [] = return $ setCurrentPane st 4
+updateStateCh st 'd' [MCtrl] = return $ scrollDownHalfPage st
+updateStateCh st 'u' [MCtrl] = return $ scrollUpHalfPage st
 updateStateCh st _   _  = return st

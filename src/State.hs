@@ -28,7 +28,9 @@ module State
     , paneVisibleFiles
     , currPanePath
     , scrollUp
+    , scrollUpHalfPage
     , scrollDown
+    , scrollDownHalfPage
     , resizeTerminal
     , recalculateOffsets
     , setCurrentPane
@@ -220,25 +222,44 @@ highlightedIdxOrder ps = show (cs + 1) ++ "/" ++ show tot
     cs  = highlightedFileIdx ps
     tot = length $ paneVisibleFiles ps
 
+idxScrolledDown :: PaneState -> Int -> Int
+idxScrolledDown st cnt = max 0 $ min (highlightedFileIdx st + cnt) (length (paneVisibleFiles st) - 1)
+
+idxScrolledUp :: PaneState -> Int -> Int
+idxScrolledUp st cnt = max (highlightedFileIdx st - cnt) 0
+
 -- Scroll down one line when height of terminal is
 -- ht
 paneScrollDown :: PaneState -> Int -> PaneState
 paneScrollDown st ht = st { highlightedFileIdx = nIdx, pOffset = nOffset }
   where
     aht  = pathListHeight ht
-    nIdx = max 0
-        $ min (highlightedFileIdx st + 1) (length (paneVisibleFiles st) - 1)
+    nIdx = idxScrolledDown st 1
     offset  = pOffset st
     nOffset = if nIdx - offset + 1 > aht then offset + 1 else offset
+
+paneScrollDownHalfPage :: PaneState -> Int -> PaneState
+paneScrollDownHalfPage st ht = paneRecalculateOffset st' ht
+  where
+    aht  = pathListHeight ht
+    nIdx = idxScrolledDown st (aht `div` 2)
+    st'  = st { highlightedFileIdx = nIdx }
 
 -- Scroll up one line when height of terminal is
 -- ht
 paneScrollUp :: PaneState -> Int -> PaneState
 paneScrollUp st _ = st { highlightedFileIdx = nIdx, pOffset = nOffset }
   where
-    nIdx    = max (highlightedFileIdx st - 1) 0
+    nIdx    = idxScrolledUp st 1
     offset  = pOffset st
     nOffset = if nIdx < offset then offset - 1 else offset
+
+paneScrollUpHalfPage :: PaneState -> Int -> PaneState
+paneScrollUpHalfPage st ht = paneRecalculateOffset st' ht
+  where
+    aht  = pathListHeight ht
+    nIdx = idxScrolledUp st (aht `div` 2)
+    st'  = st { highlightedFileIdx = nIdx }
 
 paneRecalculateOffset :: PaneState -> Int -> PaneState
 paneRecalculateOffset st ht =
@@ -415,9 +436,15 @@ modifyCurrPaneIO fn st = do
 scrollUp :: AppState -> AppState
 scrollUp st = let ht = tHeight st in modifyCurrPane (`paneScrollUp` ht) st
 
+scrollUpHalfPage :: AppState -> AppState
+scrollUpHalfPage st = let ht = tHeight st in modifyCurrPane (`paneScrollUpHalfPage` ht) st
+
 -- Scroll down the current pane
 scrollDown :: AppState -> AppState
 scrollDown st = let ht = tHeight st in modifyCurrPane (`paneScrollDown` ht) st
+
+scrollDownHalfPage :: AppState -> AppState
+scrollDownHalfPage st = let ht = tHeight st in modifyCurrPane (`paneScrollDownHalfPage` ht) st
 
 resizeTerminal :: AppState -> Int -> Int -> AppState
 resizeTerminal st width height = st { tWidth = width, tHeight = height }
