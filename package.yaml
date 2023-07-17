@@ -28,6 +28,7 @@ dependencies:
 - extra
 - logging
 - data-default
+- safe
 
 ghc-options:
 - -Wall

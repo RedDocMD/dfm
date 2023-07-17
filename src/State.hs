@@ -60,6 +60,7 @@ import           System.FilePath
 import           System.Posix      (rename)
 import           System.Process    (callProcess)
 import           Util
+import           Safe              (atMay)
 
 
 data SortOrder = Name | NameDescending | Time | TimeDescending deriving (Show, Eq)
@@ -152,7 +153,7 @@ highlightedFileEntry :: PaneState -> Maybe FSEntry
 highlightedFileEntry st =
     let idx   = highlightedFileIdx st
         files = dirsBeforeFiles (paneVisibleFiles st)
-    in  files !!? idx
+    in  files `atMay` idx
 
 -- Get current highlighted file
 highlightedFile :: PaneState -> Maybe FilePath
@@ -243,9 +244,8 @@ paneRecalculateOffset :: PaneState -> Int -> PaneState
 paneRecalculateOffset st ht =
     let aht     = pathListHeight ht
         idx     = highlightedFileIdx st
-        off     = pOffset st
-        offDiff = max (idx - (off + aht) + 1) 0
-    in  st { pOffset = off + offDiff }
+        nOffset = max (idx - (aht `div` 2)) 0
+    in  st { pOffset = nOffset }
 
 paneToggleMarkHighlightedFile :: PaneState -> PaneState
 paneToggleMarkHighlightedFile st =
@@ -385,6 +385,7 @@ doRename st old new = do
       newName = fileName new
   modifyCurrPaneIO refreshPaneState st''
     <&> modifyCurrPane (`highlightName` newName)
+    <&> modifyCurrPane (`paneRecalculateOffset` tHeight st'')
 
 -- Current pane state
 currPaneState :: AppState -> PaneState

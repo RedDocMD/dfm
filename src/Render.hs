@@ -12,6 +12,7 @@ import           Graphics.Vty
 import           State
 import           System.Posix
 import           Util
+import           Safe                          (atMay)
 
 
 renderNormalPath :: FSEntry -> Image
@@ -127,7 +128,7 @@ renderPathList st height =
     visiblePaths = take (pathListHeight height) $ drop off paths
     sidx         = highlightedFileIdx st - off
     before       = take sidx visiblePaths
-    sel          = visiblePaths !!? sidx
+    sel          = visiblePaths `atMay` sidx
     after        = safeTail $ drop sidx visiblePaths
     mp           = mainPath st
     marked       = HM.findWithDefault [] mp (markedFiles st)
