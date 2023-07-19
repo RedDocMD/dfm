@@ -70,7 +70,7 @@ fileStatusToType fs | isBlockDevice fs     = BlockDevice
                     | isSocket fs          = Socket
                     | otherwise            = error "Unknown file type"
 
-data CopyConflicts = CopyResult
+data CopyConflicts = CopyConflicts
        { fileToFile :: [FilePath]
        , dirToDir   :: [FilePath]
        , fileToDir  :: [FilePath]
@@ -78,14 +78,14 @@ data CopyConflicts = CopyResult
        }
 
 instance Default CopyConflicts where
-    def = CopyResult { fileToFile = []
+    def = CopyConflicts { fileToFile = []
                      , dirToDir   = []
                      , fileToDir  = []
                      , dirToFile  = []
                      }
 
 instance Semigroup CopyConflicts where
-    l <> r = CopyResult { fileToFile = fileToFile l ++ fileToFile r
+    l <> r = CopyConflicts { fileToFile = fileToFile l ++ fileToFile r
                         , dirToDir   = dirToDir l ++ dirToDir r
                         , fileToDir  = fileToDir l ++ fileToDir r
                         , dirToFile  = dirToFile l ++ dirToFile r

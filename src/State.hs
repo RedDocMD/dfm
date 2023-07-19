@@ -79,6 +79,8 @@ sortFn NameDescending = sortFnGenDesc (lower . name)
 sortFn Time           = sortFnGen mTime
 sortFn TimeDescending = sortFnGenDesc mTime
 
+type FileMap = HM.HashMap FilePath [FSEntry]
+
 -- Contains the current state of the app
 data PaneState = PaneState
     { mainPath           :: FilePath
@@ -86,9 +88,9 @@ data PaneState = PaneState
     , highlightedFileIdx :: Int
     , listMode           :: FileListMode
     , pOffset            :: Int
-    , markedFiles        :: HM.HashMap FilePath [FSEntry]
-    , yankedFiles        :: HM.HashMap FilePath [FSEntry]
-    , cutFiles           :: HM.HashMap FilePath [FSEntry]
+    , markedFiles        :: FileMap
+    , yankedFiles        :: FileMap
+    , cutFiles           :: FileMap
     , sortOrder          :: SortOrder
     }
     deriving Show
@@ -324,22 +326,27 @@ paneYankedCount = mapLenSum . yankedFiles
 paneCutCount :: PaneState -> Int
 paneCutCount = mapLenSum . cutFiles
 
-panePasteFiles :: PaneState -> IO (PaneState, CopyConflicts)
-panePasteFiles st = do
-    let yanked   = yankedFiles st
-        cut      = cutFiles st
-        mp       = mainPath st
+paneClearYankedAndCut :: PaneState -> PaneState
+paneClearYankedAndCut st = st { yankedFiles = HM.empty, cutFiles = HM.empty }
+
+panePasteGivenFiles :: PaneState -> FileMap -> FileMap -> IO CopyConflicts
+panePasteGivenFiles st yanked cut = do
+    let mp       = mainPath st
         getPaths = concatMap (\(x, ys) -> [ (x, y) | y <- ys ]) . HM.toList
-        so       = sortOrder st
     yankConflicts <- copyAllFiles (getPaths yanked) mp
     cutConflicts  <- copyAllFiles (getPaths cut)    mp
     deleteAllFiles (getPaths cut)
-    contents <- genDirs mp so
-    return (st { yankedFiles = HM.empty
-                , cutFiles    = HM.empty
-                , pathFiles   = contents
-                }
-            , yankConflicts <> cutConflicts)
+    return $ yankConflicts <> cutConflicts
+
+panePasteFiles :: PaneState -> Int -> IO (PaneState, CopyConflicts)
+panePasteFiles st ht = do
+    conflicts <- panePasteGivenFiles st (yankedFiles st) (cutFiles st)
+    st' <- refreshPaneState $ paneClearYankedAndCut st
+    let st'' = case highlightedFileEntry st of
+                  Just fe ->
+                      paneRecalculateOffset (highlightName st' (name fe)) ht
+                  Nothing -> st'
+    return (st'', conflicts)
 
 paneSetSortOrder :: SortOrder -> PaneState -> IO PaneState
 paneSetSortOrder so st = do
@@ -488,7 +495,7 @@ pasteFiles st = do
     let ps  = currPaneState st
         cp  = currPane st
         pss = paneStates st
-    (nps, mConflicts) <- panePasteFiles ps
+    (nps, mConflicts) <- panePasteFiles ps (tHeight st)
     let mode = if hasNoConflicts mConflicts then NormalMode else ConflictMode mConflicts
     return $ st { paneStates = IM.insert cp nps pss
                 , tMode      = mode
