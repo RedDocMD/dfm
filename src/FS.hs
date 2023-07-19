@@ -18,6 +18,8 @@ import           System.Directory    (copyFileWithMetadata, createDirectory,
 import           System.FilePath
 import           System.Posix        (EpochTime)
 import           System.Posix.Files
+import           Control.Logging               as Log
+import           Data.Text                      ( pack )
 
 data FileType = File | Directory | BlockDevice | CharDevice | NamedPipe | Socket deriving (Show, Eq)
 
@@ -104,6 +106,7 @@ copyAllFiles xs drp = mconcatMapM (\x -> uncurry copySingleFile x drp) xs
 
 copySingleFile :: FilePath -> FSEntry -> FilePath -> IO CopyConflicts
 copySingleFile srp fe drp = do
+    Log.log $ pack $ "sp = " ++ sp ++ ", dp = " ++ dp
     destFileExists      <- doesFileExist dp
     destDirectoryExists <- doesDirectoryExist dp
     case fileType fe of

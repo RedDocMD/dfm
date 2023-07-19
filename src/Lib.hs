@@ -68,6 +68,7 @@ updateStateCh st 'u' [] = return $ unmarkAllFiles st
 updateStateCh st 'y' [] = return $ yankMarkedFiles st
 updateStateCh st 'x' [] = return $ cutMarkedFiles st
 updateStateCh st 'p' [] = pasteFiles st
+updateStateCh st 'P' [] = pasteAllPaneFiles st
 updateStateCh st 'a' [] = setSortOrder Name st
 updateStateCh st 'A' [] = setSortOrder NameDescending st
 updateStateCh st 't' [] = setSortOrder Time st

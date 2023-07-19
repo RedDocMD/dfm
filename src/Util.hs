@@ -11,6 +11,7 @@ module Util
     , safeTail
     , mapLenSum
     , getUserName
+    , pair
     ) where
 
 import qualified Data.HashMap.Lazy as HM
@@ -67,3 +68,6 @@ getUserName = do
     uid <- getRealUserID
     ue  <- getUserEntryForID uid
     return $ userName ue
+
+pair :: a -> b -> (a, b)
+pair x y = (x, y)
