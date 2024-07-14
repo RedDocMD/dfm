@@ -49,6 +49,7 @@ module State
     , enterMkdirMode
     , mkdir
     , gotoDir
+    , refreshCurrPane
     ) where
 
 
@@ -537,3 +538,6 @@ mkdir fp st = modifyCurrPaneIO (paneMkdir fp) st >>= \nst -> return $ nst { tMod
 
 gotoDir :: FilePath -> AppState -> IO AppState
 gotoDir fp = modifyCurrPaneIO (paneGotoDir fp)
+
+refreshCurrPane :: AppState -> IO AppState
+refreshCurrPane = modifyCurrPaneIO refreshPaneState
