@@ -3,14 +3,15 @@ module Main
   )
 where
 
-import           Control.Logging   as Log
-import           Control.Monad.RWS (RWST, execRWST)
+import           Control.Logging            as Log
+import           Control.Monad.RWS          (RWST, execRWST)
 import           FS
 import           Graphics.Vty
 import           Graphics.Vty.Platform.Unix (mkVty)
 import           Lib
 import           State
-import           System.Posix      (Handler (..), installHandler, sigINT)
+import           System.Posix               (Handler (..), installHandler,
+                                             sigINT)
 import           Util
 
 type App = RWST Vty () AppState IO

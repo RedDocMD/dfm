@@ -9,8 +9,10 @@ module FS
     , hasNoConflicts
     ) where
 
+import           Control.Logging     as Log
 import           Control.Monad.Extra (mconcatMapM)
 import           Data.Default
+import           Data.Text           (pack)
 import           System.Directory    (copyFileWithMetadata, createDirectory,
                                       doesDirectoryExist, doesFileExist,
                                       listDirectory, removeDirectory,
@@ -18,16 +20,13 @@ import           System.Directory    (copyFileWithMetadata, createDirectory,
 import           System.FilePath
 import           System.Posix        (EpochTime)
 import           System.Posix.Files
-import           Control.Logging               as Log
-import           Data.Text                      ( pack )
 
-data FileType = File | Directory | BlockDevice | CharDevice | NamedPipe | Socket deriving (Show, Eq)
+data FileType = File | Directory | BlockDevice | CharDevice | NamedPipe | Socket | Symlink Bool deriving (Show, Eq)
 
 data FSEntry = FSEntry
-    { name      :: FilePath
-    , fileType  :: FileType
-    , isSymLink :: Bool
-    , mTime     :: EpochTime
+    { name     :: FilePath
+    , fileType :: FileType
+    , mTime    :: EpochTime
     }
     deriving (Show, Eq)
 
@@ -44,33 +43,30 @@ listFSEntry fp = do
     subEntries <- listDirectory fp
     let subPaths = map (fp </>) subEntries
     subTypes <- mapM fsType subPaths
-    symLinks <- mapM isPathSymLink subPaths
     mTimes <- mapM fileMTime subPaths
-    let entries = zipWith4
-            (\nm t sl mt -> FSEntry { name = nm, fileType = t, isSymLink = sl, mTime = mt })
+    let entries = zipWith3
+            (\nm t mt -> FSEntry { name = nm, fileType = t, mTime = mt })
             subEntries
             subTypes
-            symLinks
             mTimes
     return entries
 
 fsType :: FilePath -> IO FileType
-fsType path = getFileStatus path <&> fileStatusToType
-
-isPathSymLink :: FilePath -> IO Bool
-isPathSymLink path = getFileStatus path <&> isSymbolicLink
+fsType path = getSymbolicLinkStatus path >>= fileStatusToType path
 
 fileMTime :: FilePath -> IO EpochTime
-fileMTime path = getFileStatus path <&> modificationTime
+fileMTime path = getSymbolicLinkStatus path <&> modificationTime
 
-fileStatusToType :: FileStatus -> FileType
-fileStatusToType fs | isBlockDevice fs     = BlockDevice
-                    | isCharacterDevice fs = CharDevice
-                    | isNamedPipe fs       = NamedPipe
-                    | isRegularFile fs     = File
-                    | isDirectory fs       = Directory
-                    | isSocket fs          = Socket
-                    | otherwise            = error "Unknown file type"
+fileStatusToType :: FilePath -> FileStatus -> IO FileType
+fileStatusToType path fs
+    | isBlockDevice fs     = return BlockDevice
+    | isCharacterDevice fs = return CharDevice
+    | isNamedPipe fs       = return NamedPipe
+    | isRegularFile fs     = return File
+    | isDirectory fs       = return Directory
+    | isSocket fs          = return Socket
+    | isSymbolicLink fs    = fileExist path <&> Symlink
+    | otherwise            = error "Unknown file type"
 
 data CopyConflicts = CopyConflicts
        { fileToFile :: [FilePath]

@@ -1,4 +1,4 @@
-{-#LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Render
     ( renderTopBar
@@ -6,24 +6,29 @@ module Render
     , renderBottomBar
     ) where
 
-import qualified Data.HashMap.Lazy             as HM
+import qualified Data.HashMap.Lazy as HM
 import           FS
 import           Graphics.Vty
+import           Safe              (atMay)
 import           State
 import           System.Posix
 import           Util
-import           Safe                          (atMay)
+
+
+isSymlinkAndExist :: FileType -> (Bool, Bool)
+isSymlinkAndExist (Symlink x) = (True, x)
+isSymlinkAndExist _           = (False, False)
 
 
 renderNormalPath :: FSEntry -> Image
 renderNormalPath fse
     | ft == Directory = if sl then renderDirSymLink nm else renderDir nm
-    | sl              = renderSymLink nm
+    | sl              = renderSymLink nm slExist
     | ft == File      = renderFile nm
     | otherwise       = renderSpecFile nm
   where
     ft = fileType fse
-    sl = isSymLink fse
+    (sl, slExist) = isSymlinkAndExist ft
     nm = name fse
 
     renderDir fp =
@@ -32,7 +37,9 @@ renderNormalPath fse
     renderDirSymLink fp =
         string (defAttr `withForeColor` brightCyan `withStyle` bold) fp
             Graphics.Vty.<|> string defAttr "/"
-    renderSymLink fp = string (defAttr `withForeColor` cyan) (fp ++ "@")
+    renderSymLink fp exist =
+        let color = if exist then cyan else red
+        in string (defAttr `withForeColor` color) (fp ++ "@")
     renderFile     = string defAttr
     renderSpecFile = string (defAttr `withForeColor` yellow)
 
@@ -68,12 +75,12 @@ renderNormalPaths Paths { paths, sel, yanked, cut } =
 renderSelectedPath :: FSEntry -> Image
 renderSelectedPath fse
     | ft == Directory = if sl then renderDirSymLink nm else renderDir nm
-    | sl              = renderSymLink nm
+    | sl              = renderSymLink nm slExist
     | ft == File      = renderFile nm
     | otherwise       = renderSpecFile nm
   where
     ft = fileType fse
-    sl = isSymLink fse
+    (sl, slExist) = isSymlinkAndExist ft
     nm = name fse
 
     renderDir fp =
@@ -94,11 +101,12 @@ renderSelectedPath fse
                 )
                 fp
             Graphics.Vty.<|> string defAttr "/"
-    renderSymLink fp =
-        string (defAttr `withForeColor` black `withBackColor` cyan) fp
+    renderSymLink fp exist =
+        let color = if exist then cyan else red in
+        string (defAttr `withForeColor` black `withBackColor` color) fp
             Graphics.Vty.<|> string defAttr "@"
-    renderFile fp = 
-        string (defAttr `withForeColor` black `withBackColor` white) fp 
+    renderFile fp =
+        string (defAttr `withForeColor` black `withBackColor` white) fp
             Graphics.Vty.<|> string defAttr ""
     renderSpecFile fp =
         string (defAttr `withForeColor` black `withBackColor` yellow) fp
@@ -236,16 +244,16 @@ renderBottomBar ps = do
 
 modTime :: FilePath -> IO LocalTime
 modTime path = do
-    fs <- getFileStatus path
+    fs <- getSymbolicLinkStatus path
     tz <- getCurrentTimeZone
     let utcTime = posixSecondsToUTCTime (modificationTimeHiRes fs)
     return $ utcToLocalTime tz utcTime
 
 permissions :: FilePath -> IO String
-permissions path = getFileStatus path >>= \x -> return $ permissionString x
+permissions path = getSymbolicLinkStatus path >>= \x -> return $ permissionString x
 
 size :: FilePath -> IO String
-size path = getFileStatus path >>= \x -> return $ hrSize $ fileSize x
+size path = getSymbolicLinkStatus path >>= \x -> return $ hrSize $ fileSize x
 
 permissionString :: FileStatus -> String
 permissionString fs = fileTypeStr
