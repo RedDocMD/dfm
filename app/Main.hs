@@ -7,6 +7,7 @@ import           Control.Logging   as Log
 import           Control.Monad.RWS (RWST, execRWST)
 import           FS
 import           Graphics.Vty
+import           Graphics.Vty.Platform.Unix (mkVty)
 import           Lib
 import           State
 import           System.Posix      (Handler (..), installHandler, sigINT)
@@ -17,30 +18,29 @@ type App = RWST Vty () AppState IO
 main :: IO ()
 main = Log.withFileLogging "/tmp/dfm.log" $ do
   _ <- installHandler sigINT Ignore Nothing
-  cfg <- standardIOConfig
-  width <- terminalWidth cfg
-  height <- terminalHeight cfg
+  vty <- mkVty defaultConfig
+  width <- terminalWidth vty
+  height <- terminalHeight vty
   as <- defaultAppState width height
-  conflictGuard cfg as
+  conflictGuard vty as
 
-conflictGuard :: Config -> AppState -> IO ()
-conflictGuard cfg as = do
-  vty <- mkVty cfg
+conflictGuard :: Vty -> AppState -> IO ()
+conflictGuard vty as = do
   (nas, _) <- execRWST (mainLoop False) vty as
   shutdown vty
   case tMode nas of
-    ConflictMode conf  -> printConflicts conf >> conflictGuard cfg (resetAfterConflict nas)
+    ConflictMode conf  -> printConflicts conf >> conflictGuard vty (resetAfterConflict nas)
     RenameMode oldPath -> do
       newPath <- getNewName oldPath
       if newPath == oldPath
-        then conflictGuard cfg nas
-        else doRename nas oldPath newPath >>= conflictGuard cfg
+        then conflictGuard vty nas
+        else doRename nas oldPath newPath >>= conflictGuard vty
     MkdirMode -> do
       newDirName <- getNewDirectoryName
       as' <- mkdir newDirName nas
       putStrLn "\nWaiting for any key ..."
       _ <- getChar
-      conflictGuard cfg as'
+      conflictGuard vty as'
     NormalMode         -> return ()
 
 printConflicts :: CopyConflicts -> IO ()

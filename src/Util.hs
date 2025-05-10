@@ -17,7 +17,7 @@ module Util
 import qualified Data.HashMap.Lazy as HM
 import           Data.List.Extra   (splitOn)
 import           FS
-import           System.Posix      (UserEntry (userName), getRealUserID,
+import           System.Posix.User  (userName, getRealUserID,
                                     getUserEntryForID)
 
 

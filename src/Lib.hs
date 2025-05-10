@@ -8,14 +8,14 @@ import           Graphics.Vty
 import           Render
 import           State
 
-terminalSize :: Config -> IO DisplayRegion
-terminalSize cfg = outputForConfig cfg >>= displayBounds
+terminalBounds :: Vty -> IO DisplayRegion
+terminalBounds = displayBounds . outputIface
 
-terminalWidth :: Config -> IO Int
-terminalWidth = fmap regionWidth . terminalSize
+terminalWidth :: Vty -> IO Int
+terminalWidth = fmap regionWidth . terminalBounds
 
-terminalHeight :: Config -> IO Int
-terminalHeight = fmap regionHeight . terminalSize
+terminalHeight :: Vty -> IO Int
+terminalHeight = fmap regionHeight . terminalBounds
 
 
 -- Primary rendering function

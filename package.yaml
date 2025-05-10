@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/RedD
 dependencies:
 - process
 - vty
+- vty-unix
 - filepath
 - directory
 - rerebase
